@@ -54,6 +54,8 @@ $talos_grupo_actual = null;
     <g id="i-filter" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7v6l-4 2v-8z"/></g>
     <g id="i-send" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 11 13M21 3l-7 18-4-8-8-4 19-6z"/></g>
     <g id="i-paperclip" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12.5l6.5-6.5a3 3 0 0 1 4.2 4.2L10.5 18.4a5 5 0 0 1-7-7L12 3"/></g>
+    <g id="i-chevron-left" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6 9 12l6 6"/></g>
+    <g id="i-chevron-right" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></g>
   </defs>
 </svg>
 

@@ -119,6 +119,14 @@ get_header();
   .btn-send svg{width:13px;height:13px;}
   .btn-send:disabled{opacity:.4;cursor:not-allowed;}
   .btn-send-pay{background:var(--success);}
+
+  table.income thead th .th-flex{display:flex;align-items:center;gap:5px;}
+  table.income thead th.num .th-flex{justify-content:flex-end;}
+  .sort-btn{border:none;background:transparent;color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;padding:0;border-radius:4px;flex:none;}
+  .sort-btn svg{width:11px;height:11px;transition:transform .15s ease;}
+  .sort-btn:hover{color:var(--text);background:var(--border);}
+  .sort-btn[data-dir="asc"] svg{transform:rotate(180deg);}
+  .sort-btn.active{color:var(--accent);}
 </style>
 
 <div class="page-head">
@@ -127,9 +135,9 @@ get_header();
     <p class="page-sub">Facturación y notas de venta por empresa</p>
   </div>
   <div class="head-controls">
-    <a href="<?php echo esc_url( $talos_url_prev ); ?>" class="icon-btn" aria-label="Mes anterior"><svg viewBox="0 0 24 24"><use href="#i-chevron" style="transform:rotate(90deg);"/></svg></a>
-    <button class="month-picker" type="button" disabled><?php echo esc_html( $talos_mes_label ); ?></button>
-    <a href="<?php echo esc_url( $talos_url_next ); ?>" class="icon-btn" aria-label="Mes siguiente"><svg viewBox="0 0 24 24"><use href="#i-chevron" style="transform:rotate(-90deg);"/></svg></a>
+    <a href="<?php echo esc_url( $talos_url_prev ); ?>" class="icon-btn" aria-label="Mes anterior"><svg viewBox="0 0 24 24"><use href="#i-chevron-left"/></svg></a>
+    <button class="month-picker" type="button"><?php echo esc_html( $talos_mes_label ); ?></button>
+    <a href="<?php echo esc_url( $talos_url_next ); ?>" class="icon-btn" aria-label="Mes siguiente"><svg viewBox="0 0 24 24"><use href="#i-chevron-right"/></svg></a>
     <button class="btn-primary" id="btnNuevoIngreso"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg>Nuevo Ingreso</button>
   </div>
 </div>
@@ -159,21 +167,25 @@ get_header();
 <div class="table-card">
   <div class="table-card-head">
     <h3>Transacciones de <?php echo esc_html( $talos_mes_label ); ?></h3>
-    <button class="filter-chip"><svg viewBox="0 0 24 24"><use href="#i-filter"/></svg>Filtrar</button>
   </div>
   <div class="table-scroll">
     <table class="income" id="incomeTable">
       <thead>
         <tr>
           <th><input type="checkbox" class="row-check" id="checkAll"></th>
-          <th>Cliente</th><th>Servicio</th><th>Doc.</th>
-          <th class="num">Cant.</th><th class="num">P. Unit.</th><th class="num">Subtotal</th><th class="num">Total</th>
-          <th>Enviado</th><th>Pagado</th><th>Factura</th>
+          <th data-sort-key="cliente"><span class="th-flex">Cliente<button class="sort-btn" data-sort-key="cliente"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="servicio"><span class="th-flex">Servicio<button class="sort-btn" data-sort-key="servicio"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="doc"><span class="th-flex">Doc.<button class="sort-btn" data-sort-key="doc"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th class="num" data-sort-key="monto"><span class="th-flex">Monto<button class="sort-btn" data-sort-key="monto"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th class="num" data-sort-key="total"><span class="th-flex">Total<button class="sort-btn" data-sort-key="total"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="enviado"><span class="th-flex">Enviado<button class="sort-btn" data-sort-key="enviado"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="pagado"><span class="th-flex">Pagado<button class="sort-btn" data-sort-key="pagado"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th>Factura</th>
         </tr>
       </thead>
       <tbody id="incomeBody">
         <?php if ( empty( $talos_filas ) ) : ?>
-          <tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:30px;">Sin ingresos registrados para este mes.</td></tr>
+          <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:30px;">Sin ingresos registrados para este mes.</td></tr>
         <?php endif; ?>
         <?php foreach ( $talos_filas as $fila ) :
             $id = $fila['id'];
@@ -184,7 +196,14 @@ get_header();
             $pagado = get_field( 'income_paid', $id );
             $fecha_pago = get_field( 'income_payment_date', $id );
             ?>
-            <tr class="income-row<?php echo 'atrasado' === $fila['grupo'] ? ' atrasado' : ''; ?>" data-group="<?php echo esc_attr( $fila['grupo'] ); ?>" data-income-id="<?php echo esc_attr( $id ); ?>">
+            <tr class="income-row<?php echo 'atrasado' === $fila['grupo'] ? ' atrasado' : ''; ?>" data-group="<?php echo esc_attr( $fila['grupo'] ); ?>" data-income-id="<?php echo esc_attr( $id ); ?>"
+                data-sort-cliente="<?php echo esc_attr( $empresa instanceof WP_Post ? $empresa->post_title : '' ); ?>"
+                data-sort-servicio="<?php echo esc_attr( $servicio_actual instanceof WP_Post ? $servicio_actual->post_title : '' ); ?>"
+                data-sort-doc="<?php echo esc_attr( $doc ); ?>"
+                data-sort-monto="<?php echo esc_attr( get_field( 'income_unit_price', $id ) ); ?>"
+                data-sort-total="<?php echo esc_attr( get_field( 'income_total', $id ) ); ?>"
+                data-sort-enviado="<?php echo get_field( 'income_sent', $id ) ? 1 : 0; ?>"
+                data-sort-pagado="<?php echo $pagado ? 1 : 0; ?>">
               <td><input type="checkbox" class="row-check"></td>
               <td class="client">
                 <span class="client-name"><?php echo esc_html( $empresa instanceof WP_Post ? $empresa->post_title : '—' ); ?></span>
@@ -200,9 +219,7 @@ get_header();
                 <div class="desc" contenteditable="true" title="Editar descripción"><?php echo esc_html( get_field( 'income_description', $id ) ); ?></div>
               </td>
               <td><button class="doc-toggle <?php echo $es_factura ? 'factura' : 'nota'; ?>" data-role="doc"><?php echo $es_factura ? 'Factura' : 'Nota Venta'; ?></button></td>
-              <td class="num"><input class="cell-input" data-role="cant" type="number" value="<?php echo esc_attr( get_field( 'income_quantity', $id ) ); ?>" min="1"></td>
-              <td class="num"><input class="cell-input" data-role="punit" type="number" value="<?php echo esc_attr( get_field( 'income_unit_price', $id ) ); ?>" step="100"></td>
-              <td class="num tabular" data-role="subtotal"><?php echo esc_html( talos_fmt_mxn( get_field( 'income_subtotal', $id ) ) ); ?></td>
+              <td class="num"><input class="cell-input" data-role="monto" type="number" value="<?php echo esc_attr( get_field( 'income_unit_price', $id ) ); ?>" step="100"></td>
               <td class="num final tabular" data-role="total"><?php echo esc_html( talos_fmt_mxn( get_field( 'income_total', $id ) ) ); ?></td>
               <td><span class="status-dot <?php echo get_field( 'income_sent', $id ) ? 'yes' : 'no'; ?>" data-role="enviado-dot"><svg viewBox="0 0 24 24"><use href="#<?php echo get_field( 'income_sent', $id ) ? 'i-check' : 'i-x'; ?>"/></svg></span></td>
               <td>
@@ -310,34 +327,36 @@ try{
   var fmt = function(n){ return '$' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
 
   function recalcRowPreview(row){
-    var cant = parseFloat(row.querySelector('[data-role="cant"]').value) || 0;
-    var punit = parseFloat(row.querySelector('[data-role="punit"]').value) || 0;
-    var subtotal = cant * punit;
+    var monto = parseFloat(row.querySelector('[data-role="monto"]').value) || 0;
     var esFactura = row.querySelector('[data-role="doc"]').classList.contains('factura');
-    var total = esFactura ? subtotal * 1.16 : subtotal;
-    row.querySelector('[data-role="subtotal"]').textContent = fmt(subtotal);
+    var total = esFactura ? monto * 1.16 : monto;
     row.querySelector('[data-role="total"]').textContent = fmt(total);
+    row.setAttribute('data-sort-monto', monto);
+    row.setAttribute('data-sort-total', total);
   }
 
   function guardarCampo(row, campo, valor){
     var incomeId = row.getAttribute('data-income-id');
     talosPost('talos_actualizar_campo_income', { income_id: incomeId, campo: campo, valor: valor }).then(function(res){
       if (res.success){
-        row.querySelector('[data-role="subtotal"]').textContent = res.data.subtotal;
         row.querySelector('[data-role="total"]').textContent = res.data.total;
+        row.setAttribute('data-sort-total', parseFloat(res.data.total.replace(/[^0-9.-]/g, '')) || 0);
       } else {
         mostrarToast(res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo guardar el cambio.');
       }
     });
   }
 
-  document.querySelectorAll('#incomeBody input[data-role="cant"], #incomeBody input[data-role="punit"]').forEach(function(inp){
+  document.querySelectorAll('#incomeBody input[data-role="monto"]').forEach(function(inp){
     inp.addEventListener('input', function(){ recalcRowPreview(inp.closest('tr')); });
-    inp.addEventListener('change', function(){ guardarCampo(inp.closest('tr'), inp.getAttribute('data-role') === 'cant' ? 'income_quantity' : 'income_unit_price', inp.value); });
+    inp.addEventListener('change', function(){ guardarCampo(inp.closest('tr'), 'income_unit_price', inp.value); });
   });
 
   document.querySelectorAll('[data-role="servicio"]').forEach(function(sel){
-    sel.addEventListener('change', function(){ guardarCampo(sel.closest('tr'), 'income_service', sel.value); });
+    sel.addEventListener('change', function(){
+      guardarCampo(sel.closest('tr'), 'income_service', sel.value);
+      sel.closest('tr').setAttribute('data-sort-servicio', sel.options[sel.selectedIndex].text);
+    });
   });
 
   document.querySelectorAll('#incomeBody .desc').forEach(function(desc){
@@ -352,6 +371,31 @@ try{
       btn.textContent = esFactura ? 'Nota Venta' : 'Factura';
       recalcRowPreview(btn.closest('tr'));
       guardarCampo(btn.closest('tr'), 'income_doc_type', esFactura ? 'nota_venta' : 'factura');
+      btn.closest('tr').setAttribute('data-sort-doc', esFactura ? 'nota_venta' : 'factura');
+    });
+  });
+
+  // Encabezados ordenables (independiente de los filtros rápidos)
+  var NUMERIC_SORT_KEYS_ING = ['monto', 'total', 'enviado', 'pagado'];
+  var sortActivoIng = { key: null, dir: 1 };
+  document.querySelectorAll('#incomeTable .sort-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var key = btn.getAttribute('data-sort-key');
+      var dir = (sortActivoIng.key === key) ? -sortActivoIng.dir : 1;
+      sortActivoIng = { key: key, dir: dir };
+      document.querySelectorAll('#incomeTable .sort-btn').forEach(function(b){ b.classList.remove('active'); b.removeAttribute('data-dir'); });
+      btn.classList.add('active');
+      btn.setAttribute('data-dir', dir === 1 ? 'asc' : 'desc');
+      var tbody = document.getElementById('incomeBody');
+      var rows = Array.from(tbody.querySelectorAll('tr.income-row'));
+      var esNumerico = NUMERIC_SORT_KEYS_ING.indexOf(key) !== -1;
+      rows.sort(function(a, b){
+        var va = a.getAttribute('data-sort-' + key) || '';
+        var vb = b.getAttribute('data-sort-' + key) || '';
+        if (esNumerico){ va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; return (va - vb) * dir; }
+        return va.localeCompare(vb) * dir;
+      });
+      rows.forEach(function(row){ tbody.appendChild(row); });
     });
   });
 
@@ -416,6 +460,7 @@ try{
         var dot = row.querySelector('[data-role="enviado-dot"]');
         dot.className = 'status-dot yes';
         dot.innerHTML = '<svg viewBox="0 0 24 24"><use href="#i-check"/></svg>';
+        row.setAttribute('data-sort-enviado', '1');
         row.querySelector('.row-check').checked = false;
       });
       updateSelectionBar();
@@ -456,6 +501,7 @@ try{
           chip.innerHTML = '<svg viewBox="0 0 24 24"><use href="#i-check"/></svg>' + res.data.fecha_chip;
           btn.replaceWith(chip);
         }
+        row.setAttribute('data-sort-pagado', '1');
         var check = row.querySelector('.row-check');
         if (check) check.checked = false;
       });

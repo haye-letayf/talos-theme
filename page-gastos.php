@@ -140,9 +140,9 @@ get_header();
     <p class="page-sub">Gastos de operación y personales</p>
   </div>
   <div class="head-controls">
-    <a href="<?php echo esc_url( $talos_url_prev ); ?>" class="icon-btn" aria-label="Mes anterior"><svg viewBox="0 0 24 24"><use href="#i-chevron" style="transform:rotate(90deg);"/></svg></a>
-    <button class="month-picker" type="button" disabled><?php echo esc_html( $talos_mes_label ); ?></button>
-    <a href="<?php echo esc_url( $talos_url_next ); ?>" class="icon-btn" aria-label="Mes siguiente"><svg viewBox="0 0 24 24"><use href="#i-chevron" style="transform:rotate(-90deg);"/></svg></a>
+    <a href="<?php echo esc_url( $talos_url_prev ); ?>" class="icon-btn" aria-label="Mes anterior"><svg viewBox="0 0 24 24"><use href="#i-chevron-left"/></svg></a>
+    <button class="month-picker" type="button"><?php echo esc_html( $talos_mes_label ); ?></button>
+    <a href="<?php echo esc_url( $talos_url_next ); ?>" class="icon-btn" aria-label="Mes siguiente"><svg viewBox="0 0 24 24"><use href="#i-chevron-right"/></svg></a>
     <a href="<?php echo esc_url( admin_url( 'admin.php?page=talos-importar-amex' ) ); ?>" class="btn-secondary"><svg viewBox="0 0 24 24"><use href="#i-trend-down"/></svg>Importar AMEX</a>
     <button class="btn-primary" id="btnNuevoGasto"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg>Nuevo Gasto</button>
   </div>
@@ -185,7 +185,6 @@ get_header();
 <div class="table-card">
   <div class="table-card-head">
     <h3>Transacciones de <?php echo esc_html( $talos_mes_label ); ?></h3>
-    <button class="filter-chip"><svg viewBox="0 0 24 24"><use href="#i-filter"/></svg>Filtrar</button>
   </div>
   <div class="table-scroll">
     <table class="expenses" id="expensesTable">

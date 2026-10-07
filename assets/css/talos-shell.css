@@ -74,13 +74,15 @@ button{font-family:inherit;}
 .page-head{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;margin-bottom:20px;}
 .page-title{font-size:23px;font-weight:800;margin:0 0 3px;}
 .page-sub{color:var(--text-muted);font-size:13px;margin:0;}
-.head-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.head-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;}
+.head-controls > *{display:flex;align-items:center;}
 .back-link{display:inline-flex;align-items:center;gap:6px;color:var(--text-muted);font-size:12.5px;font-weight:700;margin-bottom:14px;}
 .back-link svg{width:13px;height:13px;}
 .back-link:hover{color:var(--accent);}
 
-.month-picker{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer;}
+.month-picker{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:700;color:var(--text);cursor:pointer;white-space:nowrap;}
 .month-picker svg{width:15px;height:15px;color:var(--text-muted);}
+.month-picker:disabled{cursor:default;}
 .metric-pill{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 14px;}
 .metric-pill .label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-weight:700;display:block;}
 .metric-pill .value{font-size:15px;font-weight:800;}
@@ -187,6 +189,14 @@ body.editando .data-field.locked input, body.editando .data-field.locked select{
 .modal-box h4{margin:0 0 8px;font-size:16px;font-weight:800;}
 .modal-box p{margin:0 0 20px;font-size:13px;color:var(--text-muted);line-height:1.5;}
 .modal-actions{display:flex;justify-content:flex-end;gap:10px;}
+.btn-confirm{background:var(--accent);border:none;color:#fff;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;}
+.btn-confirm:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ===== Botón Marcar Pagado ===== */
+.btn-pay{display:flex;align-items:center;gap:5px;border:1px dashed var(--border);background:transparent;color:var(--text-muted);border-radius:7px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.btn-pay:hover{border-color:var(--success);color:var(--success);}
+.paid-chip{display:flex;align-items:center;gap:5px;color:var(--success);font-weight:700;font-size:12px;}
+.paid-chip svg{width:13px;height:13px;}
 
 /* ===== Toast ===== */
 .toast{position:fixed;bottom:20px;right:16px;z-index:55;background:var(--accent);color:#fff;font-size:13px;font-weight:700;padding:10px 16px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.2);display:flex;align-items:center;gap:8px;opacity:0;transform:translateY(8px);transition:opacity .25s ease, transform .25s ease;pointer-events:none;max-width:320px;}

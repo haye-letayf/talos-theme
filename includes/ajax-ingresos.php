@@ -285,7 +285,8 @@ function talos_ajax_actualizar_campo_income() {
         wp_send_json_error( array( 'mensaje' => 'Ingreso no válido.' ) );
     }
 
-    $permitidos = array( 'income_service', 'income_doc_type', 'income_quantity', 'income_unit_price', 'income_description' );
+    // income_quantity ya no se usa en ningún CPT/Field Group del sistema — se quitó de la UI y de aquí.
+    $permitidos = array( 'income_service', 'income_doc_type', 'income_unit_price', 'income_description' );
     if ( ! in_array( $campo, $permitidos, true ) ) {
         wp_send_json_error( array( 'mensaje' => 'Campo no permitido.' ) );
     }
@@ -300,11 +301,10 @@ function talos_ajax_actualizar_campo_income() {
         update_field( $campo, (float) $valor, $income_id );
     }
 
-    // Recalcular subtotal/total si cambió algo que los afecta.
-    $cantidad    = (float) get_field( 'income_quantity', $income_id );
+    // Recalcular subtotal/total si cambió algo que los afecta (sin cantidad: subtotal == precio unitario).
     $precio      = (float) get_field( 'income_unit_price', $income_id );
     $aplica_iva  = ( 'factura' === get_field( 'income_doc_type', $income_id ) );
-    $subtotal    = $cantidad * $precio;
+    $subtotal    = $precio;
     $total       = $aplica_iva ? $subtotal * 1.16 : $subtotal;
     update_field( 'income_subtotal', $subtotal, $income_id );
     update_field( 'income_total', $total, $income_id );
