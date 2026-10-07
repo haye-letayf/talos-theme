@@ -118,6 +118,21 @@ button{font-family:inherit;}
 .metric-box.hero .value{color:#ffffff;}
 @media (max-width:980px){.kpi-strip,.count-strip,.metric-strip{grid-template-columns:repeat(2,minmax(0,1fr));}}
 
+/* ===== Compensación de la Admin Bar de WordPress (solo visible logueado) =====
+   WP fija su propia barra negra en top:0 con z-index altísimo; nuestros elementos
+   sticky calculaban su offset asumiendo que el tope de la pantalla era 0, así que
+   la Admin Bar tapaba el topbar y desfasaba el sticky de los cuadros de resumen.
+   WP agrega la clase body.admin-bar y reserva 32px (46px en móvil) — lo sumamos
+   a nuestros propios offsets en vez de asumir top:0. */
+body.admin-bar .sidebar{top:32px;}
+body.admin-bar .topbar{top:calc(32px + env(safe-area-inset-top,0px));}
+body.admin-bar .kpi-strip,body.admin-bar .count-strip,body.admin-bar .metric-strip{top:calc(62px + 32px + env(safe-area-inset-top,0px));}
+@media screen and (max-width:782px){
+  body.admin-bar .sidebar{top:46px;}
+  body.admin-bar .topbar{top:calc(46px + env(safe-area-inset-top,0px));}
+  body.admin-bar .kpi-strip,body.admin-bar .count-strip,body.admin-bar .metric-strip{top:calc(62px + 46px + env(safe-area-inset-top,0px));}
+}
+
 /* ===== Filtros rápidos ===== */
 .filter-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px;}
 .filter-search{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:0 12px;height:38px;width:min(280px,100%);}
