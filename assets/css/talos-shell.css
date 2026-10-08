@@ -195,6 +195,13 @@ table td.num{text-align:right;}
 .rfc-cell{display:flex;align-items:center;gap:7px;font-variant-numeric:tabular-nums;}
 .row-actions{display:flex;align-items:center;gap:6px;}
 
+/* ===== Directorio de personas (Contactos/Equipo): avatar circular + cargo debajo ===== */
+.person{display:flex;align-items:center;gap:9px;}
+.person-ava{width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;flex:none;}
+.person-name{font-weight:700;line-height:1.25;}
+.person-sub{display:block;color:var(--text-muted);font-weight:500;font-size:11px;line-height:1.25;}
+.email-link{color:var(--accent);font-weight:500;}
+
 /* ===== Campos editables (ver/editar en una ficha) ===== */
 .data-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px;}
 .data-field.full{grid-column:1 / -1;}
