@@ -77,7 +77,14 @@ get_header();
     <table id="contactsTable">
       <thead>
         <tr>
-          <th>Contacto</th><th>Empresa</th><th>Correo</th><th>Teléfono</th><th>WhatsApp</th><th>Clase</th><th>Estatus</th><th>Acciones</th>
+          <th data-sort-key="contacto"><span class="th-flex">Contacto<button class="sort-btn" data-sort-key="contacto"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="empresa"><span class="th-flex">Empresa<button class="sort-btn" data-sort-key="empresa"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="correo"><span class="th-flex">Correo<button class="sort-btn" data-sort-key="correo"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="telefono"><span class="th-flex">Teléfono<button class="sort-btn" data-sort-key="telefono"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="whatsapp"><span class="th-flex">WhatsApp<button class="sort-btn" data-sort-key="whatsapp"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="clase"><span class="th-flex">Clase<button class="sort-btn" data-sort-key="clase"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="estatus"><span class="th-flex">Estatus<button class="sort-btn" data-sort-key="estatus"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th>Acciones</th>
         </tr>
       </thead>
       <tbody id="contactsBody">
@@ -95,8 +102,17 @@ get_header();
             $empresa   = get_field( 'contact_company', $id );
             $empresa_post = ( $empresa instanceof WP_Post ) ? $empresa : null;
             $nombre_filtro = $nombre . ' ' . ( $empresa_post ? $empresa_post->post_title : '' );
+            $clase_label   = $clase ? ( $talos_contacto_clase_labels[ $clase ] ?? $clase ) : '';
+            $estatus_label = $estatus ? ( $talos_contacto_estatus_labels[ $estatus ] ?? $estatus ) : '';
             ?>
-            <tr data-estatus="<?php echo esc_attr( $estatus ); ?>" data-clase="<?php echo esc_attr( $clase ); ?>" data-nombre="<?php echo esc_attr( $nombre_filtro ); ?>">
+            <tr data-estatus="<?php echo esc_attr( $estatus ); ?>" data-clase="<?php echo esc_attr( $clase ); ?>" data-nombre="<?php echo esc_attr( $nombre_filtro ); ?>"
+                data-sort-contacto="<?php echo esc_attr( $nombre ); ?>"
+                data-sort-empresa="<?php echo esc_attr( $empresa_post ? $empresa_post->post_title : '' ); ?>"
+                data-sort-correo="<?php echo esc_attr( $correo ); ?>"
+                data-sort-telefono="<?php echo esc_attr( $tel_oficina ); ?>"
+                data-sort-whatsapp="<?php echo esc_attr( $tel_celular ); ?>"
+                data-sort-clase="<?php echo esc_attr( $clase_label ); ?>"
+                data-sort-estatus="<?php echo esc_attr( $estatus_label ); ?>">
               <td>
                 <div class="person">
                   <div class="person-ava"><?php echo esc_html( talos_iniciales( $nombre ) ); ?></div>
@@ -118,8 +134,8 @@ get_header();
                   <div class="rfc-cell"><span><?php echo esc_html( $tel_celular ); ?></span><button class="copy-btn" data-copy="<?php echo esc_attr( $tel_celular ); ?>" title="Copiar WhatsApp"><svg viewBox="0 0 24 24"><use href="#i-copy"/></svg></button></div>
                 <?php else : ?>—<?php endif; ?>
               </td>
-              <td><?php if ( $clase ) : ?><span class="pill class-<?php echo esc_attr( $clase ); ?>"><?php echo esc_html( $talos_contacto_clase_labels[ $clase ] ?? $clase ); ?></span><?php else : ?>—<?php endif; ?></td>
-              <td><?php if ( $estatus ) : ?><span class="pill status-<?php echo esc_attr( $estatus ); ?>"><span class="pill-dot"></span><?php echo esc_html( $talos_contacto_estatus_labels[ $estatus ] ?? $estatus ); ?></span><?php else : ?>—<?php endif; ?></td>
+              <td><?php if ( $clase ) : ?><span class="pill class-<?php echo esc_attr( $clase ); ?>"><?php echo esc_html( $clase_label ); ?></span><?php else : ?>—<?php endif; ?></td>
+              <td><?php if ( $estatus ) : ?><span class="pill status-<?php echo esc_attr( $estatus ); ?>"><span class="pill-dot"></span><?php echo esc_html( $estatus_label ); ?></span><?php else : ?>—<?php endif; ?></td>
               <td class="row-actions">
                 <button class="action-btn view" data-action="ver" data-contacto="<?php echo esc_attr( $nombre ); ?>" title="Ver datos"><svg viewBox="0 0 24 24"><use href="#i-eye"/></svg></button>
                 <button class="action-btn edit" data-action="editar" data-contacto="<?php echo esc_attr( $nombre ); ?>" title="Editar contacto"><svg viewBox="0 0 24 24"><use href="#i-edit"/></svg></button>

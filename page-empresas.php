@@ -124,7 +124,13 @@ get_header();
     <table id="companiesTable">
       <thead>
         <tr>
-          <th>Empresa</th><th>Clase</th><th>Estatus</th><th>Account Manager</th><th>RFC</th><th>Estado</th><th>Acciones</th>
+          <th>Empresa</th>
+          <th data-sort-key="clase"><span class="th-flex">Clase<button class="sort-btn" data-sort-key="clase"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="estatus"><span class="th-flex">Estatus<button class="sort-btn" data-sort-key="estatus"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="am"><span class="th-flex">Account Manager<button class="sort-btn" data-sort-key="am"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="rfc"><span class="th-flex">RFC<button class="sort-btn" data-sort-key="rfc"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="estado"><span class="th-flex">Estado<button class="sort-btn" data-sort-key="estado"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th>Acciones</th>
         </tr>
       </thead>
       <tbody id="companiesBody">
@@ -142,8 +148,16 @@ get_header();
             $am_post  = ( $am instanceof WP_Post ) ? $am : null;
             $padre_id = wp_get_post_parent_id( $id );
             $es_subcuenta = $padre_id && in_array( $padre_id, $talos_empresas_todas, true );
+            $clase_label   = $clase ? ( $talos_clase_labels[ $clase ] ?? $clase ) : '';
+            $estatus_label = $estatus ? ( $talos_estatus_labels[ $estatus ] ?? $estatus ) : '';
+            $estado_label  = $estado ? ( $talos_estados_mx[ $estado ] ?? $estado ) : '';
             ?>
-            <tr data-estatus="<?php echo esc_attr( $estatus ); ?>" data-clase="<?php echo esc_attr( $clase ); ?>" data-nombre="<?php echo esc_attr( $nombre ); ?>">
+            <tr data-estatus="<?php echo esc_attr( $estatus ); ?>" data-clase="<?php echo esc_attr( $clase ); ?>" data-nombre="<?php echo esc_attr( $nombre ); ?>"
+                data-sort-clase="<?php echo esc_attr( $clase_label ); ?>"
+                data-sort-estatus="<?php echo esc_attr( $estatus_label ); ?>"
+                data-sort-am="<?php echo esc_attr( $am_post ? $am_post->post_title : '' ); ?>"
+                data-sort-rfc="<?php echo esc_attr( $rfc ); ?>"
+                data-sort-estado="<?php echo esc_attr( $estado_label ); ?>">
               <td>
                 <div class="company-name<?php echo $es_subcuenta ? ' is-subcuenta' : ''; ?>">
                   <div class="company-logo"><?php echo esc_html( talos_iniciales( $nombre ) ); ?></div>
@@ -154,8 +168,8 @@ get_header();
                   </div>
                 </div>
               </td>
-              <td><?php if ( $clase ) : ?><span class="pill class-<?php echo esc_attr( $clase ); ?>"><?php echo esc_html( $talos_clase_labels[ $clase ] ?? $clase ); ?></span><?php else : ?>—<?php endif; ?></td>
-              <td><?php if ( $estatus ) : ?><span class="pill status-<?php echo esc_attr( $estatus ); ?>"><span class="pill-dot"></span><?php echo esc_html( $talos_estatus_labels[ $estatus ] ?? $estatus ); ?></span><?php else : ?>—<?php endif; ?></td>
+              <td><?php if ( $clase ) : ?><span class="pill class-<?php echo esc_attr( $clase ); ?>"><?php echo esc_html( $clase_label ); ?></span><?php else : ?>—<?php endif; ?></td>
+              <td><?php if ( $estatus ) : ?><span class="pill status-<?php echo esc_attr( $estatus ); ?>"><span class="pill-dot"></span><?php echo esc_html( $estatus_label ); ?></span><?php else : ?>—<?php endif; ?></td>
               <td>
                 <?php if ( $am_post ) : ?>
                   <div class="am-cell"><div class="avatar-sm"><?php echo esc_html( talos_iniciales( $am_post->post_title ) ); ?></div><?php echo esc_html( $am_post->post_title ); ?></div>
@@ -166,7 +180,7 @@ get_header();
                   <div class="rfc-cell"><span><?php echo esc_html( $rfc ); ?></span><button class="copy-btn" data-copy="<?php echo esc_attr( $rfc ); ?>" title="Copiar RFC"><svg viewBox="0 0 24 24"><use href="#i-copy"/></svg></button></div>
                 <?php else : ?>—<?php endif; ?>
               </td>
-              <td><?php echo esc_html( $estado ? ( $talos_estados_mx[ $estado ] ?? $estado ) : '—' ); ?></td>
+              <td><?php echo esc_html( $estado_label ?: '—' ); ?></td>
               <td class="row-actions">
                 <button class="action-btn view" data-action="ver" data-empresa="<?php echo esc_attr( $nombre ); ?>" title="Ver ficha técnica"><svg viewBox="0 0 24 24"><use href="#i-eye"/></svg></button>
                 <button class="action-btn edit" data-action="editar" data-empresa="<?php echo esc_attr( $nombre ); ?>" title="Editar empresa"><svg viewBox="0 0 24 24"><use href="#i-edit"/></svg></button>

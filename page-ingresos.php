@@ -114,13 +114,6 @@ get_header();
   .btn-send:disabled{opacity:.4;cursor:not-allowed;}
   .btn-send-pay{background:var(--success);}
 
-  table.income thead th .th-flex{display:flex;align-items:center;gap:5px;}
-  table.income thead th.num .th-flex{justify-content:flex-end;}
-  .sort-btn{border:none;background:transparent;color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;padding:0;border-radius:4px;flex:none;}
-  .sort-btn svg{width:11px;height:11px;transition:transform .15s ease;}
-  .sort-btn:hover{color:var(--text);background:var(--border);}
-  .sort-btn[data-dir="asc"] svg{transform:rotate(180deg);}
-  .sort-btn.active{color:var(--accent);}
 </style>
 
 <div class="page-head">
@@ -168,10 +161,10 @@ get_header();
           <th data-sort-key="cliente"><span class="th-flex">Cliente<button class="sort-btn" data-sort-key="cliente"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
           <th data-sort-key="servicio"><span class="th-flex">Servicio<button class="sort-btn" data-sort-key="servicio"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
           <th data-sort-key="doc"><span class="th-flex">Doc.<button class="sort-btn" data-sort-key="doc"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
-          <th class="num" data-sort-key="monto"><span class="th-flex">Monto<button class="sort-btn" data-sort-key="monto"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
-          <th class="num" data-sort-key="total"><span class="th-flex">Total<button class="sort-btn" data-sort-key="total"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
-          <th data-sort-key="enviado"><span class="th-flex">Enviado<button class="sort-btn" data-sort-key="enviado"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
-          <th data-sort-key="pagado"><span class="th-flex">Pagado<button class="sort-btn" data-sort-key="pagado"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th class="num" data-sort-key="monto"><span class="th-flex">Monto<button class="sort-btn" data-sort-key="monto" data-sort-numeric><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th class="num" data-sort-key="total"><span class="th-flex">Total<button class="sort-btn" data-sort-key="total" data-sort-numeric><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="enviado"><span class="th-flex">Enviado<button class="sort-btn" data-sort-key="enviado" data-sort-numeric><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="pagado"><span class="th-flex">Pagado<button class="sort-btn" data-sort-key="pagado" data-sort-numeric><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
           <th>Factura</th>
           <th></th>
         </tr>
@@ -382,29 +375,7 @@ try{
     });
   });
 
-  // Encabezados ordenables (independiente de los filtros rápidos)
-  var NUMERIC_SORT_KEYS_ING = ['monto', 'total', 'enviado', 'pagado'];
-  var sortActivoIng = { key: null, dir: 1 };
-  document.querySelectorAll('#incomeTable .sort-btn').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      var key = btn.getAttribute('data-sort-key');
-      var dir = (sortActivoIng.key === key) ? -sortActivoIng.dir : 1;
-      sortActivoIng = { key: key, dir: dir };
-      document.querySelectorAll('#incomeTable .sort-btn').forEach(function(b){ b.classList.remove('active'); b.removeAttribute('data-dir'); });
-      btn.classList.add('active');
-      btn.setAttribute('data-dir', dir === 1 ? 'asc' : 'desc');
-      var tbody = document.getElementById('incomeBody');
-      var rows = Array.from(tbody.querySelectorAll('tr.income-row'));
-      var esNumerico = NUMERIC_SORT_KEYS_ING.indexOf(key) !== -1;
-      rows.sort(function(a, b){
-        var va = a.getAttribute('data-sort-' + key) || '';
-        var vb = b.getAttribute('data-sort-' + key) || '';
-        if (esNumerico){ va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; return (va - vb) * dir; }
-        return va.localeCompare(vb) * dir;
-      });
-      rows.forEach(function(row){ tbody.appendChild(row); });
-    });
-  });
+  // Encabezados ordenables: lógica compartida en talos-app.js
 
   document.querySelectorAll('[data-group-filter] button').forEach(function(btn){
     btn.addEventListener('click', function(){

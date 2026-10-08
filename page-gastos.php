@@ -119,13 +119,6 @@ get_header();
   .cat-pill.operacion .cat-dot{background:var(--accent);}
   .cat-pill.personal{background:#fdf3d8;color:#8a6200;}
   .cat-pill.personal .cat-dot{background:#c99500;}
-  table.expenses thead th .th-flex{display:flex;align-items:center;gap:5px;}
-  table.expenses thead th.num .th-flex{justify-content:flex-end;}
-  .sort-btn{border:none;background:transparent;color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;padding:0;border-radius:4px;flex:none;}
-  .sort-btn svg{width:11px;height:11px;transition:transform .15s ease;}
-  .sort-btn:hover{color:var(--text);background:var(--border);}
-  .sort-btn[data-dir="asc"] svg{transform:rotate(180deg);}
-  .sort-btn.active{color:var(--accent);}
   table.expenses tbody tr.atrasado{background:var(--danger-soft);}
   table.expenses tbody tr.atrasado:hover{background:var(--danger-soft);filter:brightness(0.97);}
   .late-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;color:var(--danger);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
@@ -190,12 +183,12 @@ get_header();
       <thead>
         <tr>
           <th><input type="checkbox" class="row-check" id="checkAllGastos"></th>
-          <th data-sort-key="mes"><span class="th-flex">Mes<button class="sort-btn" data-sort-key="mes"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="mes"><span class="th-flex">Mes<button class="sort-btn" data-sort-key="mes" data-sort-numeric><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
           <th data-sort-key="categoria"><span class="th-flex">Categoría<button class="sort-btn" data-sort-key="categoria"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
           <th data-sort-key="subcategoria"><span class="th-flex">Subcategoría<button class="sort-btn" data-sort-key="subcategoria"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
           <th data-sort-key="proveedor"><span class="th-flex">Proveedor / Descripción<button class="sort-btn" data-sort-key="proveedor"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
-          <th class="num" data-sort-key="monto"><span class="th-flex">Monto<button class="sort-btn" data-sort-key="monto"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
-          <th data-sort-key="pagado"><span class="th-flex">Pagado<button class="sort-btn" data-sort-key="pagado"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th class="num" data-sort-key="monto"><span class="th-flex">Monto<button class="sort-btn" data-sort-key="monto" data-sort-numeric><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th data-sort-key="pagado"><span class="th-flex">Pagado<button class="sort-btn" data-sort-key="pagado" data-sort-numeric><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
           <th></th>
         </tr>
       </thead>
@@ -312,29 +305,7 @@ try{
     });
   });
 
-  // Encabezados ordenables
-  var NUMERIC_SORT_KEYS = ['monto', 'pagado'];
-  var sortActivo = { key: null, dir: 1 };
-  document.querySelectorAll('.sort-btn').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      var key = btn.getAttribute('data-sort-key');
-      var dir = (sortActivo.key === key) ? -sortActivo.dir : 1;
-      sortActivo = { key: key, dir: dir };
-      document.querySelectorAll('.sort-btn').forEach(function(b){ b.classList.remove('active'); b.removeAttribute('data-dir'); });
-      btn.classList.add('active');
-      btn.setAttribute('data-dir', dir === 1 ? 'asc' : 'desc');
-      var tbody = document.getElementById('expenseBody');
-      var rows = Array.from(tbody.querySelectorAll('tr[data-expense-id]'));
-      var esNumerico = NUMERIC_SORT_KEYS.indexOf(key) !== -1 || key === 'mes';
-      rows.sort(function(a, b){
-        var va = a.getAttribute('data-sort-' + key) || '';
-        var vb = b.getAttribute('data-sort-' + key) || '';
-        if (esNumerico){ va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; return (va - vb) * dir; }
-        return va.localeCompare(vb) * dir;
-      });
-      rows.forEach(function(row){ tbody.appendChild(row); });
-    });
-  });
+  // Encabezados ordenables: lógica compartida en talos-app.js
 
   // Marcar Pagado (individual o masivo, mismo modal y mismo endpoint)
   var modalPagoGasto = document.getElementById('modalPagoGasto');
