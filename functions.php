@@ -75,3 +75,85 @@ function talos_meses_es() {
 function talos_meses_cortos() {
     return array( 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic' );
 }
+
+/**
+ * Todos los slugs de página que son pantallas de Talos (vs. páginas normales de WP),
+ * y cuáles de esas son visibles para el rol "Consulta" (de solo lectura — Fer/Dany).
+ * Sumar 'bitacora' aquí cuando ese módulo exista. header.php usa la misma lista para
+ * filtrar el sidebar — mantenerlas en un solo lugar para no desincronizarlas.
+ */
+function talos_secciones_todas() {
+    return array( 'dashboard', 'ingresos', 'gastos', 'empresas', 'contactos', 'servicios', 'equipo', 'oportunidades' );
+}
+function talos_secciones_consulta() {
+    return array( 'empresas', 'contactos' );
+}
+
+/**
+ * Acceso: toda pantalla de Talos requiere sesión iniciada. Quien no tenga
+ * manage_options (es decir, el rol "Consulta") solo puede ver las secciones de
+ * talos_secciones_consulta() — cualquier otra la regresa a Empresas. Mismo criterio
+ * de "acceso completo" que ya usan los botones administrativos del resto del theme.
+ */
+function talos_restringir_acceso() {
+    if ( is_admin() || ! is_singular( 'page' ) ) return;
+
+    if ( ! is_user_logged_in() ) {
+        wp_safe_redirect( wp_login_url( get_permalink() ) );
+        exit;
+    }
+
+    $slug = get_post_field( 'post_name', get_queried_object_id() );
+    if ( in_array( $slug, talos_secciones_todas(), true )
+        && ! current_user_can( 'manage_options' )
+        && ! in_array( $slug, talos_secciones_consulta(), true )
+    ) {
+        wp_safe_redirect( home_url( '/empresas/' ) );
+        exit;
+    }
+}
+add_action( 'template_redirect', 'talos_restringir_acceso' );
+
+/**
+ * Pantalla de login con marca Once24 en vez del wp-login.php genérico de WordPress.
+ */
+function talos_login_personalizado() {
+    $logo = esc_url( get_template_directory_uri() . '/assets/images/once24-logo-white.png' );
+    ?>
+    <style>
+      body.login{background:#0b1a3d;font-family:'Poppins',-apple-system,sans-serif;}
+      body.login #login{padding-top:70px;width:360px;}
+      .login h1{text-align:center;}
+      .login h1 a{
+        background-image:url('<?php echo $logo; ?>');
+        background-size:contain;background-position:center;
+        width:100%;height:60px;margin-bottom:10px;
+      }
+      .login form{
+        border-radius:14px;border:none;
+        box-shadow:0 20px 50px rgba(0,0,0,.35);
+        padding:26px 24px 20px;
+      }
+      .login label{font-weight:600;color:#2c3e50;font-size:13px;}
+      .login input[type="text"],.login input[type="password"]{
+        border-radius:8px;border-color:#e3e3e3;padding:10px 12px;font-size:14px;
+      }
+      .login input[type="text"]:focus,.login input[type="password"]:focus{
+        border-color:#022873;box-shadow:0 0 0 1px #022873;
+      }
+      .login .button-primary{
+        background:#022873;border-color:#022873;border-radius:9px;
+        text-shadow:none;box-shadow:none;font-weight:700;width:100%;
+        text-align:center;height:auto;padding:9px 0;
+      }
+      .login .button-primary:hover,.login .button-primary:focus{background:#021f5c;border-color:#021f5c;}
+      .login #nav,.login #backtoblog{text-align:center;}
+      .login #nav a,.login #backtoblog a{color:#c9d6ef;}
+      .login #nav a:hover,.login #backtoblog a:hover{color:#ffffff;}
+      .login .privacy-policy-page-link{display:none;}
+    </style>
+    <?php
+}
+add_action( 'login_enqueue_scripts', 'talos_login_personalizado' );
+add_filter( 'login_headerurl', function () { return home_url( '/' ); } );
+add_filter( 'login_headertext', function () { return 'Talos — Once24'; } );

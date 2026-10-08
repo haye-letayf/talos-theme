@@ -24,6 +24,11 @@ $talos_nav = array(
     array( 'slug' => 'gastos',        'label' => 'Gastos',         'icon' => 'i-trend-down', 'group' => 'Finanzas' ),
     array( 'slug' => 'equipo',        'label' => 'Equipo',         'icon' => 'i-badge',      'group' => 'Equipo' ),
 );
+if ( ! current_user_can( 'manage_options' ) ) {
+    $talos_nav = array_values( array_filter( $talos_nav, function ( $item ) {
+        return in_array( $item['slug'], talos_secciones_consulta(), true );
+    } ) );
+}
 $talos_current_slug = get_queried_object() && isset( get_queried_object()->post_name ) ? get_queried_object()->post_name : '';
 $talos_grupo_actual = null;
 
@@ -105,7 +110,7 @@ if ( $talos_es_seccion_con_mes ) {
       <div class="avatar"><?php echo esc_html( talos_iniciales( $talos_user->display_name ) ); ?></div>
       <div>
         <div class="user-name"><?php echo esc_html( $talos_user->display_name ); ?></div>
-        <div class="user-role">Director</div>
+        <div class="user-role"><?php echo esc_html( current_user_can( 'manage_options' ) ? 'Director' : 'Consulta' ); ?></div>
       </div>
     </div>
   </div>
