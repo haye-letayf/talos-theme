@@ -60,15 +60,23 @@ get_header();
 // DEBUG TEMPORAL — quitar una vez diagnosticado el cruce de datos (2026-10-08).
 // Solo visible en el código fuente (Ver código fuente / Cmd+Opt+U), nunca renderizado.
 if ( current_user_can( 'manage_options' ) ) {
-    echo "<!-- TALOS DEBUG EMPRESAS build e7ce13b\n";
+    echo "<!-- TALOS DEBUG EMPRESAS build cachetest1 — probando si es cache de objetos\n";
     foreach ( $talos_empresas_ids as $debug_id ) {
+        $raw_antes = get_post_meta( $debug_id, 'company_class', true );
+        $field_antes = get_field( 'company_class', $debug_id );
+        clean_post_cache( $debug_id );
+        wp_cache_delete( $debug_id, 'post_meta' );
+        wp_cache_delete( $debug_id, 'posts' );
+        $raw_despues = get_post_meta( $debug_id, 'company_class', true );
+        $field_despues = get_field( 'company_class', $debug_id );
         $debug_linea = sprintf(
-            "#%d %s => class=[%s] status=[%s] rfc=[%s]\n",
+            "#%d %s => raw_antes=[%s] field_antes=[%s] | tras limpiar cache: raw_despues=[%s] field_despues=[%s]\n",
             $debug_id,
             get_the_title( $debug_id ),
-            get_field( 'company_class', $debug_id ),
-            get_field( 'company_status', $debug_id ),
-            get_field( 'company_rfc', $debug_id )
+            $raw_antes,
+            $field_antes,
+            $raw_despues,
+            $field_despues
         );
         echo str_replace( '--', '- -', $debug_linea );
     }
