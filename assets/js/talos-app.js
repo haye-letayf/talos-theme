@@ -7,15 +7,5 @@ document.addEventListener('DOMContentLoaded', function () {
         document.body.classList.toggle('sidebar-open');
       });
     }
-
-    var themeBtn = document.getElementById('themeBtn');
-    if (themeBtn) {
-      themeBtn.addEventListener('click', function () {
-        var root = document.documentElement;
-        var current = root.getAttribute('data-theme');
-        var isDark = current === 'dark' || (!current && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        root.setAttribute('data-theme', isDark ? 'light' : 'dark');
-      });
-    }
   } catch (e) {}
 });

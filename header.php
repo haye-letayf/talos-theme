@@ -27,6 +27,20 @@ $talos_nav = array(
 );
 $talos_current_slug = get_queried_object() && isset( get_queried_object()->post_name ) ? get_queried_object()->post_name : '';
 $talos_grupo_actual = null;
+
+// Selector de mes universal: solo aplica a las 3 secciones con datos por periodo.
+$talos_secciones_con_mes = array( 'dashboard', 'ingresos', 'gastos' );
+$talos_mes_activo = talos_mes_activo();
+talos_guardar_mes_activo( $talos_mes_activo );
+$talos_mes_activo_str = $talos_mes_activo->format( 'Y-m' );
+$talos_mes_activo_label = talos_meses_es()[ (int) $talos_mes_activo->format( 'n' ) ] . ' ' . $talos_mes_activo->format( 'Y' );
+
+$talos_es_seccion_con_mes = in_array( $talos_current_slug, $talos_secciones_con_mes, true );
+if ( $talos_es_seccion_con_mes ) {
+    $talos_url_pagina_actual = home_url( '/' . $talos_current_slug . '/' );
+    $talos_topbar_mes_prev = add_query_arg( 'mes', ( clone $talos_mes_activo )->modify( '-1 month' )->format( 'Y-m' ), $talos_url_pagina_actual );
+    $talos_topbar_mes_next = add_query_arg( 'mes', ( clone $talos_mes_activo )->modify( '+1 month' )->format( 'Y-m' ), $talos_url_pagina_actual );
+}
 ?>
 
 <svg style="display:none">
@@ -57,6 +71,7 @@ $talos_grupo_actual = null;
     <g id="i-chevron-left" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6 9 12l6 6"/></g>
     <g id="i-chevron-right" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></g>
     <g id="i-trash" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 7V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></g>
+    <g id="i-upload" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></g>
   </defs>
 </svg>
 
@@ -72,8 +87,12 @@ $talos_grupo_actual = null;
             ?><div class="nav-label"><?php echo esc_html( $talos_grupo_actual ); ?></div><?php
         endif;
         $talos_es_activo = ( $talos_current_slug === $item['slug'] );
+        $talos_href = home_url( '/' . $item['slug'] . '/' );
+        if ( in_array( $item['slug'], $talos_secciones_con_mes, true ) ) {
+            $talos_href = add_query_arg( 'mes', $talos_mes_activo_str, $talos_href );
+        }
         ?>
-        <a class="nav-item<?php echo $talos_es_activo ? ' active' : ''; ?>" href="<?php echo esc_url( home_url( '/' . $item['slug'] . '/' ) ); ?>">
+        <a class="nav-item<?php echo $talos_es_activo ? ' active' : ''; ?>" href="<?php echo esc_url( $talos_href ); ?>">
             <svg viewBox="0 0 24 24"><use href="#<?php echo esc_attr( $item['icon'] ); ?>"/></svg><?php echo esc_html( $item['label'] ); ?>
         </a>
     <?php endforeach; ?>
@@ -94,8 +113,14 @@ $talos_grupo_actual = null;
   <header class="topbar">
     <button class="menu-btn" id="menuBtn" aria-label="Abrir menú"><svg viewBox="0 0 24 24"><use href="#i-menu"/></svg></button>
     <div class="search-box"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg><input type="text" id="talosBuscadorGlobal" placeholder="Buscar empresa, contacto, oportunidad…" autocomplete="off"></div>
+    <?php if ( $talos_es_seccion_con_mes ) : ?>
+    <div class="topbar-mes">
+      <a href="<?php echo esc_url( $talos_topbar_mes_prev ); ?>" class="icon-btn" aria-label="Mes anterior"><svg viewBox="0 0 24 24"><use href="#i-chevron-left"/></svg></a>
+      <span class="month-picker" aria-live="polite"><?php echo esc_html( $talos_mes_activo_label ); ?></span>
+      <a href="<?php echo esc_url( $talos_topbar_mes_next ); ?>" class="icon-btn" aria-label="Mes siguiente"><svg viewBox="0 0 24 24"><use href="#i-chevron-right"/></svg></a>
+    </div>
+    <?php endif; ?>
     <div class="topbar-spacer"></div>
-    <button class="icon-btn" id="themeBtn" aria-label="Cambiar tema"><svg viewBox="0 0 24 24"><use href="#i-moon"/></svg></button>
     <button class="icon-btn" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><use href="#i-bell"/></svg><span class="dot"></span></button>
     <div class="topbar-avatar"><?php echo esc_html( talos_iniciales( $talos_user->display_name ) ); ?></div>
   </header>

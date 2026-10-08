@@ -41,3 +41,33 @@ function talos_iniciales( $nombre ) {
 function talos_fmt_mxn( $numero ) {
     return '$' . number_format( (float) $numero, 0, '.', ',' );
 }
+
+/**
+ * Selector de mes universal (Dashboard/Ingresos/Gastos): el mes activo viene del
+ * parámetro ?mes=YYYY-MM si está presente, si no de la cookie talos_mes_activo
+ * (lo último que se vio), si no del mes real en curso. header.php vuelve a
+ * guardar la cookie en cada carga para que, al navegar a otra sección desde el
+ * sidebar, el mes seleccionado se mantenga sin tener que repetirlo en la URL.
+ */
+function talos_mes_activo() {
+    $param = isset( $_GET['mes'] ) ? sanitize_text_field( wp_unslash( $_GET['mes'] ) ) : '';
+    $mes = DateTime::createFromFormat( 'Y-m', $param );
+    if ( ! $mes && isset( $_COOKIE['talos_mes_activo'] ) ) {
+        $mes = DateTime::createFromFormat( 'Y-m', sanitize_text_field( wp_unslash( $_COOKIE['talos_mes_activo'] ) ) );
+    }
+    return $mes ? $mes->modify( 'first day of this month' ) : new DateTime( 'first day of this month' );
+}
+
+function talos_guardar_mes_activo( DateTime $mes ) {
+    if ( ! headers_sent() ) {
+        setcookie( 'talos_mes_activo', $mes->format( 'Y-m' ), time() + 60 * DAY_IN_SECONDS, '/' );
+    }
+}
+
+function talos_meses_es() {
+    return array( 1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre' );
+}
+
+function talos_meses_cortos() {
+    return array( 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic' );
+}

@@ -12,20 +12,7 @@
   --danger:#dc1c2e; --danger-soft:#fce3e5;
   --gold:#FFE01B;
 }
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#0d1420; --surface:#141d2e; --surface-2:#1a2438;
-    --text:#e7ecf3; --text-muted:#8f9bb3; --border:#253252;
-    --accent-soft:#1b2a4d; --success:#39BF81; --success-soft:#133327;
-    --danger:#dc1c2e; --danger-soft:#3a1316; color-scheme: dark;
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#0d1420; --surface:#141d2e; --surface-2:#1a2438;
-  --text:#e7ecf3; --text-muted:#8f9bb3; --border:#253252;
-  --accent-soft:#1b2a4d; --success:#39BF81; --success-soft:#133327;
-  --danger:#dc1c2e; --danger-soft:#3a1316; color-scheme: dark;
-}
+/* Modo oscuro removido a propósito (2026-10): Jorge prefiere la versión clara fija. */
 
 *{box-sizing:border-box;}
 html,body{height:100%;}
@@ -81,6 +68,9 @@ button{font-family:inherit;}
 .back-link:hover{color:var(--accent);}
 
 .month-picker{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:700;color:var(--text);cursor:pointer;white-space:nowrap;}
+.topbar-mes{display:flex;align-items:center;gap:8px;}
+.topbar-mes .month-picker{cursor:default;padding:8px 10px;}
+@media (max-width:860px){.topbar-mes{display:none;}}
 .month-picker svg{width:15px;height:15px;color:var(--text-muted);}
 .month-picker:disabled{cursor:default;}
 .metric-pill{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 14px;}
@@ -148,6 +138,7 @@ body.admin-bar .kpi-strip,body.admin-bar .count-strip,body.admin-bar .metric-str
 .btn-send{display:flex;align-items:center;gap:7px;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;}
 .btn-send svg{width:13px;height:13px;}
 .btn-send:disabled{opacity:.4;cursor:not-allowed;}
+.btn-send-pay{background:var(--success);}
 
 /* ===== Tarjetas y tablas base ===== */
 .card,.table-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;}

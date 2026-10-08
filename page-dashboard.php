@@ -73,12 +73,8 @@ function talos_dashboard_totales_expense( DateTime $mes ) {
     return array( 'pagado' => $pagado, 'pendiente' => $pendiente, 'total' => $pagado + $pendiente );
 }
 
-$talos_mes_param  = isset( $_GET['mes'] ) ? sanitize_text_field( wp_unslash( $_GET['mes'] ) ) : '';
-$talos_mes_actual = DateTime::createFromFormat( 'Y-m', $talos_mes_param );
-$talos_mes_actual = $talos_mes_actual ? $talos_mes_actual->modify( 'first day of this month' ) : new DateTime( 'first day of this month' );
+$talos_mes_actual   = talos_mes_activo();
 $talos_mes_anterior = ( clone $talos_mes_actual )->modify( '-1 month' );
-$talos_url_prev = add_query_arg( 'mes', ( clone $talos_mes_actual )->modify( '-1 month' )->format( 'Y-m' ), get_permalink() );
-$talos_url_next = add_query_arg( 'mes', ( clone $talos_mes_actual )->modify( '+1 month' )->format( 'Y-m' ), get_permalink() );
 
 $talos_income_actual   = talos_dashboard_totales_income( $talos_mes_actual );
 $talos_income_anterior = talos_dashboard_totales_income( $talos_mes_anterior );
@@ -96,9 +92,6 @@ $talos_income_trend = null;
 if ( $talos_income_anterior['pagado'] > 0 ) {
     $talos_income_trend = round( ( ( $talos_income_actual['pagado'] - $talos_income_anterior['pagado'] ) / $talos_income_anterior['pagado'] ) * 100, 1 );
 }
-
-$talos_meses_es  = array( 1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre' );
-$talos_mes_label = $talos_meses_es[ (int) $talos_mes_actual->format( 'n' ) ] . ' ' . $talos_mes_actual->format( 'Y' );
 
 get_header();
 ?>
@@ -130,9 +123,6 @@ get_header();
     <p class="page-sub">Resumen general de la operación de Once24</p>
   </div>
   <div class="head-controls">
-    <a href="<?php echo esc_url( $talos_url_prev ); ?>" class="icon-btn" aria-label="Mes anterior"><svg viewBox="0 0 24 24"><use href="#i-chevron-left"/></svg></a>
-    <button class="month-picker" type="button"><?php echo esc_html( $talos_mes_label ); ?></button>
-    <a href="<?php echo esc_url( $talos_url_next ); ?>" class="icon-btn" aria-label="Mes siguiente"><svg viewBox="0 0 24 24"><use href="#i-chevron-right"/></svg></a>
     <div class="metric-pill <?php echo esc_attr( $talos_goal_clase ); ?>">
       <div><span class="label">Meta de Ingresos</span><span class="value tabular"><?php echo esc_html( $talos_income_goal ); ?>%</span></div>
     </div>

@@ -8,16 +8,10 @@
  *    muestra una sola columna "Monto" en vez de Cant./P. Unit./Total por separado.
  */
 
-$talos_mes_param = isset( $_GET['mes'] ) ? sanitize_text_field( wp_unslash( $_GET['mes'] ) ) : '';
-$talos_mes_viendo = DateTime::createFromFormat( 'Y-m', $talos_mes_param );
-$talos_mes_viendo = $talos_mes_viendo ? $talos_mes_viendo->modify( 'first day of this month' ) : new DateTime( 'first day of this month' );
-$talos_mes_hoy    = new DateTime( 'first day of this month' );
-
-$talos_meses_es     = array( 1=>'Enero',2=>'Febrero',3=>'Marzo',4=>'Abril',5=>'Mayo',6=>'Junio',7=>'Julio',8=>'Agosto',9=>'Septiembre',10=>'Octubre',11=>'Noviembre',12=>'Diciembre' );
-$talos_meses_cortos = array( 'ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic' );
-$talos_mes_label    = $talos_meses_es[ (int) $talos_mes_viendo->format( 'n' ) ] . ' ' . $talos_mes_viendo->format( 'Y' );
-$talos_url_prev     = add_query_arg( 'mes', ( clone $talos_mes_viendo )->modify( '-1 month' )->format( 'Y-m' ), get_permalink() );
-$talos_url_next     = add_query_arg( 'mes', ( clone $talos_mes_viendo )->modify( '+1 month' )->format( 'Y-m' ), get_permalink() );
+$talos_mes_viendo   = talos_mes_activo();
+$talos_mes_hoy      = new DateTime( 'first day of this month' );
+$talos_meses_cortos = talos_meses_cortos();
+$talos_mes_label    = talos_meses_es()[ (int) $talos_mes_viendo->format( 'n' ) ] . ' ' . $talos_mes_viendo->format( 'Y' );
 
 $talos_subcat_labels = array(
     'alimentos_bebidas'=>'Alimentos y Bebidas','auto_transporte'=>'Auto y Transporte','casetas'=>'Casetas',
@@ -111,6 +105,9 @@ get_header();
   .breakdown-row .amt.realizado{color:var(--success);}
   .breakdown-row .amt.pendiente{color:var(--danger);}
   @media (max-width:860px){.breakdown-row{grid-template-columns:1.2fr 1fr 1fr;padding:12px 14px;}}
+  .amex-dropzone{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface-2);border:1px dashed var(--border);border-radius:10px;padding:14px;margin-bottom:18px;}
+  .amex-resumen{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--text-muted);margin:14px 0;}
+  .amex-resumen strong{color:var(--text);}
 
   table.expenses{min-width:900px;}
   table.expenses td.concept .sup{font-weight:700;}
@@ -140,10 +137,7 @@ get_header();
     <p class="page-sub">Gastos de operación y personales</p>
   </div>
   <div class="head-controls">
-    <a href="<?php echo esc_url( $talos_url_prev ); ?>" class="icon-btn" aria-label="Mes anterior"><svg viewBox="0 0 24 24"><use href="#i-chevron-left"/></svg></a>
-    <button class="month-picker" type="button"><?php echo esc_html( $talos_mes_label ); ?></button>
-    <a href="<?php echo esc_url( $talos_url_next ); ?>" class="icon-btn" aria-label="Mes siguiente"><svg viewBox="0 0 24 24"><use href="#i-chevron-right"/></svg></a>
-    <a href="<?php echo esc_url( admin_url( 'admin.php?page=talos-importar-amex' ) ); ?>" class="btn-secondary"><svg viewBox="0 0 24 24"><use href="#i-trend-down"/></svg>Importar AMEX</a>
+    <button class="btn-secondary" id="btnAmex"><svg viewBox="0 0 24 24"><use href="#i-upload"/></svg>Subir Movimientos AMEX</button>
     <button class="btn-primary" id="btnNuevoGasto"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg>Nuevo Gasto</button>
   </div>
 </div>
@@ -182,6 +176,7 @@ get_header();
   <div class="seg-spacer"></div>
   <div class="selection-bar" id="selectionBar">
     <span id="selectionCount">0 seleccionados</span>
+    <button class="btn-send btn-send-pay" id="btnPagoMasivoGastos" disabled><svg viewBox="0 0 24 24"><use href="#i-check"/></svg>Registrar Pago Masivo</button>
     <button class="btn-danger" id="btnEliminarMasivo" disabled><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg>Eliminar Seleccionados</button>
   </div>
 </div>
@@ -250,11 +245,29 @@ get_header();
 <div class="modal-overlay" id="modalPagoGasto">
   <div class="modal-box">
     <div class="modal-icon" style="background:var(--success-soft);color:var(--success);"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></div>
-    <h4>¿Marcar como pagado?</h4>
-    <p>Se marcará este gasto como Pagado con la fecha de hoy.</p>
+    <h4 id="modalPagoGastoTitulo">¿Marcar como pagado?</h4>
+    <p id="modalPagoGastoTexto">Se marcará este gasto como Pagado con la fecha de hoy.</p>
     <div class="modal-actions">
       <button class="btn-ghost" data-close-modal>Cancelar</button>
       <button class="btn-confirm" id="btnConfirmarPagoGasto" style="background:var(--success);">Sí, marcar pagado</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalAmex">
+  <div class="modal-box">
+    <div class="modal-icon"><svg viewBox="0 0 24 24"><use href="#i-upload"/></svg></div>
+    <h4>Importar movimientos AMEX</h4>
+    <p>Selecciona el archivo CSV exportado de American Express. Cada movimiento se clasifica automáticamente y se agrega a Gastos; los que ya existan (misma Referencia AMEX) se omiten, puedes volver a subir el mismo archivo sin miedo a duplicar.</p>
+    <div class="amex-dropzone">
+      <input type="file" id="amexFile" accept=".csv" style="display:none">
+      <button class="btn-ghost" id="btnAmexSeleccionar" type="button">Seleccionar archivo CSV</button>
+      <span id="amexFileName" style="font-size:12px;color:var(--text-muted);">Ningún archivo seleccionado</span>
+    </div>
+    <div class="amex-resumen" id="amexResumen" style="display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" data-close-modal>Cerrar</button>
+      <button class="btn-confirm" id="btnConfirmarAmex" disabled>Procesar e Importar</button>
     </div>
   </div>
 </div>
@@ -276,6 +289,7 @@ get_header();
 <script>
 try{
   var talosNonceGastos = '<?php echo esc_js( wp_create_nonce( 'talos_gastos' ) ); ?>';
+  var talosNonceAmex = '<?php echo esc_js( wp_create_nonce( 'talos_importar_amex_modal' ) ); ?>';
   var talosAjaxUrlGastos = '<?php echo esc_js( admin_url( 'admin-ajax.php' ) ); ?>';
 
   function mostrarToastGastos(texto){
@@ -322,31 +336,49 @@ try{
     });
   });
 
-  // Marcar Pagado
+  // Marcar Pagado (individual o masivo, mismo modal y mismo endpoint)
   var modalPagoGasto = document.getElementById('modalPagoGasto');
-  var filaPendientePago = null;
+  var filasPendientesPagoGastos = [];
+  function solicitarPagoGasto(filas){
+    filasPendientesPagoGastos = filas;
+    var n = filas.length;
+    document.getElementById('modalPagoGastoTitulo').textContent = n === 1 ? '¿Marcar como pagado?' : '¿Marcar ' + n + ' gastos como pagados?';
+    document.getElementById('modalPagoGastoTexto').textContent = n === 1
+      ? 'Se marcará este gasto como Pagado con la fecha de hoy.'
+      : 'Se marcarán ' + n + ' gastos como Pagados con la fecha de hoy.';
+    modalPagoGasto.classList.add('show');
+  }
   document.querySelectorAll('[data-role="pay"]').forEach(function(btn){
-    btn.addEventListener('click', function(){ filaPendientePago = btn.closest('tr'); modalPagoGasto.classList.add('show'); });
+    btn.addEventListener('click', function(){ solicitarPagoGasto([btn.closest('tr')]); });
   });
-  modalPagoGasto.querySelectorAll('[data-close-modal]').forEach(function(b){ b.addEventListener('click', function(){ filaPendientePago = null; modalPagoGasto.classList.remove('show'); }); });
+  document.getElementById('btnPagoMasivoGastos').addEventListener('click', function(){
+    var filas = Array.from(document.querySelectorAll('#expenseBody .row-check:checked')).map(function(c){ return c.closest('tr'); });
+    solicitarPagoGasto(filas);
+  });
+  modalPagoGasto.querySelectorAll('[data-close-modal]').forEach(function(b){ b.addEventListener('click', function(){ filasPendientesPagoGastos = []; modalPagoGasto.classList.remove('show'); }); });
   document.getElementById('btnConfirmarPagoGasto').addEventListener('click', function(){
-    if (!filaPendientePago) return;
+    if (!filasPendientesPagoGastos.length) return;
     var form = new FormData();
-    form.append('action', 'talos_marcar_pagado_gasto');
+    form.append('action', 'talos_marcar_pagado_gasto_masivo');
     form.append('nonce', talosNonceGastos);
-    form.append('expense_id', filaPendientePago.getAttribute('data-expense-id'));
+    filasPendientesPagoGastos.forEach(function(fila){ form.append('ids[]', fila.getAttribute('data-expense-id')); });
     fetch(talosAjaxUrlGastos, { method: 'POST', body: form, credentials: 'same-origin' }).then(function(r){ return r.json(); }).then(function(res){
       modalPagoGasto.classList.remove('show');
       if (!res.success){ mostrarToastGastos(res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo registrar el pago.'); return; }
-      var btn = filaPendientePago.querySelector('[data-role="pay"]');
-      if (btn){
-        var chip = document.createElement('span');
-        chip.className = 'paid-chip';
-        chip.innerHTML = '<svg viewBox="0 0 24 24"><use href="#i-check"/></svg>' + res.data.fecha_chip;
-        btn.replaceWith(chip);
-      }
-      filaPendientePago.setAttribute('data-sort-pagado', '1');
-      filaPendientePago = null;
+      filasPendientesPagoGastos.forEach(function(fila){
+        var btn = fila.querySelector('[data-role="pay"]');
+        if (btn){
+          var chip = document.createElement('span');
+          chip.className = 'paid-chip';
+          chip.innerHTML = '<svg viewBox="0 0 24 24"><use href="#i-check"/></svg>' + res.data.fecha_chip;
+          btn.replaceWith(chip);
+        }
+        fila.setAttribute('data-sort-pagado', '1');
+        var check = fila.querySelector('.row-check');
+        if (check) check.checked = false;
+      });
+      filasPendientesPagoGastos = [];
+      updateSelectionBarGastos();
     });
   });
 
@@ -361,6 +393,7 @@ try{
     document.getElementById('selectionCount').textContent = checked.length + ' seleccionado' + (checked.length === 1 ? '' : 's');
     document.getElementById('selectionBar').classList.toggle('show', checked.length > 0);
     document.getElementById('btnEliminarMasivo').disabled = checked.length === 0;
+    document.getElementById('btnPagoMasivoGastos').disabled = checked.length === 0;
   }
   var checkAllGastosEl = document.getElementById('checkAllGastos');
   if (checkAllGastosEl) checkAllGastosEl.addEventListener('change', function(){
@@ -401,6 +434,65 @@ try{
       });
       updateSelectionBarGastos();
       mostrarToastGastos(res.data.ids.length + ' gasto(s) movido(s) a la papelera.');
+    });
+  });
+
+  // ===== Importar AMEX (modal real, no redirige a wp-admin) =====
+  var modalAmex = document.getElementById('modalAmex');
+  var amexFileInput = document.getElementById('amexFile');
+  var amexFileName = document.getElementById('amexFileName');
+  var btnConfirmarAmex = document.getElementById('btnConfirmarAmex');
+  var amexResumen = document.getElementById('amexResumen');
+  var amexImportado = false;
+
+  function resetModalAmex(){
+    amexFileInput.value = '';
+    amexFileName.textContent = 'Ningún archivo seleccionado';
+    btnConfirmarAmex.disabled = true;
+    btnConfirmarAmex.textContent = 'Procesar e Importar';
+    amexResumen.style.display = 'none';
+    amexImportado = false;
+  }
+
+  document.getElementById('btnAmex').addEventListener('click', function(){ resetModalAmex(); modalAmex.classList.add('show'); });
+  document.getElementById('btnAmexSeleccionar').addEventListener('click', function(){ amexFileInput.click(); });
+  amexFileInput.addEventListener('change', function(){
+    if (amexFileInput.files && amexFileInput.files[0]){
+      amexFileName.textContent = amexFileInput.files[0].name;
+      amexFileName.style.color = 'var(--text)';
+      btnConfirmarAmex.disabled = false;
+    }
+  });
+  modalAmex.querySelectorAll('[data-close-modal]').forEach(function(b){
+    b.addEventListener('click', function(){
+      modalAmex.classList.remove('show');
+      if (amexImportado) window.location.reload();
+    });
+  });
+  btnConfirmarAmex.addEventListener('click', function(){
+    if (!amexFileInput.files || !amexFileInput.files[0]) return;
+    btnConfirmarAmex.disabled = true;
+    btnConfirmarAmex.textContent = 'Procesando…';
+    var form = new FormData();
+    form.append('action', 'talos_importar_amex');
+    form.append('nonce', talosNonceAmex);
+    form.append('archivo', amexFileInput.files[0]);
+    fetch(talosAjaxUrlGastos, { method: 'POST', body: form, credentials: 'same-origin' }).then(function(r){ return r.json(); }).then(function(res){
+      if (!res.success){
+        btnConfirmarAmex.disabled = false;
+        btnConfirmarAmex.textContent = 'Procesar e Importar';
+        mostrarToastGastos(res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo importar el archivo.');
+        return;
+      }
+      amexImportado = true;
+      var d = res.data;
+      amexResumen.style.display = 'flex';
+      amexResumen.innerHTML =
+        '<span><strong>' + d.gastos_creados + '</strong> gastos importados</span>' +
+        '<span><strong>' + d.duplicados_omitidos + '</strong> duplicados omitidos (ya existían)</span>' +
+        '<span><strong>' + d.pendientes_clasificar + '</strong> pendientes de clasificar manualmente</span>';
+      btnConfirmarAmex.style.display = 'none';
+      mostrarToastGastos(d.gastos_creados + ' movimiento(s) importado(s) correctamente.');
     });
   });
 }catch(e){ console.error(e); }

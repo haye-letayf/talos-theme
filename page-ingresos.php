@@ -5,17 +5,11 @@
  * correos (Nota/Factura, Comprobante de Pago) vía includes/ajax-ingresos.php.
  */
 
-// ===== Mes que se está viendo (?mes=YYYY-MM), por defecto el mes real en curso =====
-$talos_mes_param = isset( $_GET['mes'] ) ? sanitize_text_field( wp_unslash( $_GET['mes'] ) ) : '';
-$talos_mes_viendo = DateTime::createFromFormat( 'Y-m', $talos_mes_param );
-$talos_mes_viendo = $talos_mes_viendo ? $talos_mes_viendo->modify( 'first day of this month' ) : new DateTime( 'first day of this month' );
-$talos_mes_hoy    = new DateTime( 'first day of this month' );
-
-$talos_meses_es   = array( 1=>'Enero',2=>'Febrero',3=>'Marzo',4=>'Abril',5=>'Mayo',6=>'Junio',7=>'Julio',8=>'Agosto',9=>'Septiembre',10=>'Octubre',11=>'Noviembre',12=>'Diciembre' );
-$talos_meses_cortos = array( 'ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic' );
-$talos_mes_label  = $talos_meses_es[ (int) $talos_mes_viendo->format( 'n' ) ] . ' ' . $talos_mes_viendo->format( 'Y' );
-$talos_url_prev   = add_query_arg( 'mes', ( clone $talos_mes_viendo )->modify( '-1 month' )->format( 'Y-m' ), get_permalink() );
-$talos_url_next   = add_query_arg( 'mes', ( clone $talos_mes_viendo )->modify( '+1 month' )->format( 'Y-m' ), get_permalink() );
+// ===== Mes que se está viendo: selector universal (topbar), ver talos_mes_activo() =====
+$talos_mes_viendo   = talos_mes_activo();
+$talos_mes_hoy      = new DateTime( 'first day of this month' );
+$talos_meses_cortos = talos_meses_cortos();
+$talos_mes_label    = talos_meses_es()[ (int) $talos_mes_viendo->format( 'n' ) ] . ' ' . $talos_mes_viendo->format( 'Y' );
 
 function talos_ing_mes_corto( $ymd, $cortos ) {
     $m = (int) substr( $ymd, 4, 2 );
@@ -135,9 +129,6 @@ get_header();
     <p class="page-sub">Facturación y notas de venta por empresa</p>
   </div>
   <div class="head-controls">
-    <a href="<?php echo esc_url( $talos_url_prev ); ?>" class="icon-btn" aria-label="Mes anterior"><svg viewBox="0 0 24 24"><use href="#i-chevron-left"/></svg></a>
-    <button class="month-picker" type="button"><?php echo esc_html( $talos_mes_label ); ?></button>
-    <a href="<?php echo esc_url( $talos_url_next ); ?>" class="icon-btn" aria-label="Mes siguiente"><svg viewBox="0 0 24 24"><use href="#i-chevron-right"/></svg></a>
     <button class="btn-primary" id="btnNuevoIngreso"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg>Nuevo Ingreso</button>
   </div>
 </div>
