@@ -3,6 +3,14 @@
    Portado 1:1 de los mockups ya aprobados por Jorge; cada page-*.php agrega
    solo las reglas específicas de su propia pantalla en su <style> local.
    ========================================================================== */
+
+/* El atributo [hidden] empata en especificidad con cualquier selector de
+   clase que ponga su propio display (ej. .service-card{display:flex}), y al
+   venir después en la cascada esa clase le gana — el filtro dejaba de
+   esconder tarjetas/filas pese a que el JS sí marcaba hidden=true. !important
+   fuerza a que [hidden] siempre gane, sin importar qué más defina display. */
+[hidden]{display:none!important;}
+
 :root{
   --bg:#F2F2F2; --surface:#ffffff; --surface-2:#F2F2F2;
   --text:#2c3e50; --text-muted:#64748b; --border:#e3e3e3;
