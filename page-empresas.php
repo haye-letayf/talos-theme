@@ -56,6 +56,24 @@ foreach ( $talos_empresas_ids as $id ) {
 }
 
 get_header();
+
+// DEBUG TEMPORAL — quitar una vez diagnosticado el cruce de datos (2026-10-08).
+// Solo visible en el código fuente (Ver código fuente / Cmd+Opt+U), nunca renderizado.
+if ( current_user_can( 'manage_options' ) ) {
+    echo "<!-- TALOS DEBUG EMPRESAS build e7ce13b\n";
+    foreach ( $talos_empresas_ids as $debug_id ) {
+        $debug_linea = sprintf(
+            "#%d %s => class=[%s] status=[%s] rfc=[%s]\n",
+            $debug_id,
+            get_the_title( $debug_id ),
+            get_field( 'company_class', $debug_id ),
+            get_field( 'company_status', $debug_id ),
+            get_field( 'company_rfc', $debug_id )
+        );
+        echo str_replace( '--', '- -', $debug_linea );
+    }
+    echo "-->\n";
+}
 ?>
 
 <div class="page-head">
