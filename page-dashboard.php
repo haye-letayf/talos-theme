@@ -73,9 +73,29 @@ function talos_dashboard_totales_expense( DateTime $mes ) {
     return array( 'pagado' => $pagado, 'pendiente' => $pendiente, 'total' => $pagado + $pendiente );
 }
 
+function talos_dashboard_totales_empresas() {
+    $ids = get_posts( array(
+        'post_type'      => 'talos_company',
+        'post_status'    => 'publish',
+        'posts_per_page' => -1,
+        'fields'         => 'ids',
+    ) );
+
+    $clientes_activos  = 0;
+    $leads_oportunidad = 0;
+    foreach ( $ids as $id ) {
+        $clase   = get_field( 'company_class', $id );
+        $estatus = get_field( 'company_status', $id );
+        if ( 'client' === $clase && 'active' === $estatus ) $clientes_activos++;
+        if ( in_array( $clase, array( 'lead', 'opportunity' ), true ) ) $leads_oportunidad++;
+    }
+    return array( 'clientes_activos' => $clientes_activos, 'leads_oportunidad' => $leads_oportunidad );
+}
+
 $talos_mes_actual   = talos_mes_activo();
 $talos_mes_anterior = ( clone $talos_mes_actual )->modify( '-1 month' );
 
+$talos_empresas_totales = talos_dashboard_totales_empresas();
 $talos_income_actual   = talos_dashboard_totales_income( $talos_mes_actual );
 $talos_income_anterior = talos_dashboard_totales_income( $talos_mes_anterior );
 $talos_expense_actual  = talos_dashboard_totales_expense( $talos_mes_actual );
@@ -115,6 +135,8 @@ get_header();
   .kpi-value{font-size:24px;font-weight:800;margin:0;letter-spacing:-.01em;}
   @media (max-width:1024px){.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
   @media (max-width:560px){.kpi-grid{grid-template-columns:1fr;}.page-head{align-items:flex-start;}}
+  .kpi-grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr));}
+  @media (max-width:560px){.kpi-grid.cols-2{grid-template-columns:1fr;}}
 </style>
 
 <div class="page-head">
@@ -174,6 +196,20 @@ get_header();
     <div class="kpi-top"><div class="kpi-icon accent"><svg viewBox="0 0 24 24"><use href="#i-receipt"/></svg></div></div>
     <p class="kpi-label">Gastos Totales</p>
     <p class="kpi-value tabular"><?php echo esc_html( talos_fmt_mxn( $talos_expense_actual['total'] ) ); ?></p>
+  </div>
+</div>
+
+<div class="kpi-section-label">Empresas</div>
+<div class="kpi-grid cols-2">
+  <div class="kpi-card">
+    <div class="kpi-top"><div class="kpi-icon success"><svg viewBox="0 0 24 24"><use href="#i-building"/></svg></div></div>
+    <p class="kpi-label">Clientes Activos</p>
+    <p class="kpi-value tabular"><?php echo esc_html( $talos_empresas_totales['clientes_activos'] ); ?></p>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-top"><div class="kpi-icon accent"><svg viewBox="0 0 24 24"><use href="#i-funnel"/></svg></div></div>
+    <p class="kpi-label">Leads / Oportunidad</p>
+    <p class="kpi-value tabular"><?php echo esc_html( $talos_empresas_totales['leads_oportunidad'] ); ?></p>
   </div>
 </div>
 

@@ -34,14 +34,40 @@ function talos_empresas_dominio( $url ) {
     return preg_replace( '/^www\./i', '', $host );
 }
 
-$talos_empresas_ids = get_posts( array(
+$talos_empresas_todas = get_posts( array(
     'post_type'      => 'talos_company',
     'post_status'    => 'publish',
     'posts_per_page' => -1,
     'fields'         => 'ids',
-    'orderby'        => 'title',
-    'order'          => 'ASC',
 ) );
+
+// talos_company es jerárquico (subcuentas = empresa hija con post_parent). Para que
+// una subcuenta no aparezca suelta en medio del alfabeto, se agrupa justo debajo de
+// su matriz en vez de ordenar todo por título de forma plana.
+$talos_empresas_hijas_de = array();
+$talos_empresas_matrices = array();
+foreach ( $talos_empresas_todas as $id ) {
+    $padre_id = wp_get_post_parent_id( $id );
+    if ( $padre_id && in_array( $padre_id, $talos_empresas_todas, true ) ) {
+        $talos_empresas_hijas_de[ $padre_id ][] = $id;
+    } else {
+        $talos_empresas_matrices[] = $id;
+    }
+}
+$talos_ordenar_por_titulo = function ( $a, $b ) { return strcasecmp( get_the_title( $a ), get_the_title( $b ) ); };
+usort( $talos_empresas_matrices, $talos_ordenar_por_titulo );
+foreach ( $talos_empresas_hijas_de as &$talos_hijas ) {
+    usort( $talos_hijas, $talos_ordenar_por_titulo );
+}
+unset( $talos_hijas );
+
+$talos_empresas_ids = array();
+foreach ( $talos_empresas_matrices as $matriz_id ) {
+    $talos_empresas_ids[] = $matriz_id;
+    foreach ( $talos_empresas_hijas_de[ $matriz_id ] ?? array() as $hija_id ) {
+        $talos_empresas_ids[] = $hija_id;
+    }
+}
 
 $talos_total_empresas = count( $talos_empresas_ids );
 $talos_clientes_activos = 0;
@@ -56,33 +82,11 @@ foreach ( $talos_empresas_ids as $id ) {
 }
 
 get_header();
-
-// DEBUG TEMPORAL — quitar una vez diagnosticado el cruce de datos (2026-10-08).
-// Solo visible en el código fuente (Ver código fuente / Cmd+Opt+U), nunca renderizado.
-if ( current_user_can( 'manage_options' ) ) {
-    echo "<!-- TALOS DEBUG EMPRESAS build cachetest1 — probando si es cache de objetos\n";
-    foreach ( $talos_empresas_ids as $debug_id ) {
-        $raw_antes = get_post_meta( $debug_id, 'company_class', true );
-        $field_antes = get_field( 'company_class', $debug_id );
-        clean_post_cache( $debug_id );
-        wp_cache_delete( $debug_id, 'post_meta' );
-        wp_cache_delete( $debug_id, 'posts' );
-        $raw_despues = get_post_meta( $debug_id, 'company_class', true );
-        $field_despues = get_field( 'company_class', $debug_id );
-        $debug_linea = sprintf(
-            "#%d %s => raw_antes=[%s] field_antes=[%s] | tras limpiar cache: raw_despues=[%s] field_despues=[%s]\n",
-            $debug_id,
-            get_the_title( $debug_id ),
-            $raw_antes,
-            $field_antes,
-            $raw_despues,
-            $field_despues
-        );
-        echo str_replace( '--', '- -', $debug_linea );
-    }
-    echo "-->\n";
-}
 ?>
+
+<style>
+  .company-name.is-subcuenta{margin-left:22px;}
+</style>
 
 <div class="page-head">
   <div>
@@ -136,12 +140,18 @@ if ( current_user_can( 'manage_options' ) ) {
             $dominio  = talos_empresas_dominio( get_field( 'company_website', $id ) );
             $am       = get_field( 'company_account_manager', $id );
             $am_post  = ( $am instanceof WP_Post ) ? $am : null;
+            $padre_id = wp_get_post_parent_id( $id );
+            $es_subcuenta = $padre_id && in_array( $padre_id, $talos_empresas_todas, true );
             ?>
             <tr data-estatus="<?php echo esc_attr( $estatus ); ?>" data-clase="<?php echo esc_attr( $clase ); ?>" data-nombre="<?php echo esc_attr( $nombre ); ?>">
               <td>
-                <div class="company-name">
+                <div class="company-name<?php echo $es_subcuenta ? ' is-subcuenta' : ''; ?>">
                   <div class="company-logo"><?php echo esc_html( talos_iniciales( $nombre ) ); ?></div>
-                  <div><?php echo esc_html( $nombre ); ?><?php if ( $dominio ) : ?><span class="company-sub"><?php echo esc_html( $dominio ); ?></span><?php endif; ?></div>
+                  <div>
+                    <?php echo esc_html( $nombre ); ?>
+                    <?php if ( $es_subcuenta ) : ?><span class="company-sub">↳ Subcuenta de <?php echo esc_html( get_the_title( $padre_id ) ); ?></span><?php endif; ?>
+                    <?php if ( $dominio ) : ?><span class="company-sub"><?php echo esc_html( $dominio ); ?></span><?php endif; ?>
+                  </div>
                 </div>
               </td>
               <td><?php if ( $clase ) : ?><span class="pill class-<?php echo esc_attr( $clase ); ?>"><?php echo esc_html( $talos_clase_labels[ $clase ] ?? $clase ); ?></span><?php else : ?>—<?php endif; ?></td>
