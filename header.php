@@ -6,7 +6,6 @@
     <title><?php wp_title( '|', true, 'right' ); bloginfo( 'name' ); ?></title>
     <meta content="Talos 2.0 ERP" name="description" />
     <meta content="Once24" name="author" />
-    <link rel="shortcut icon" href="<?php echo esc_url( get_template_directory_uri() . '/assets/images/favicon.ico' ); ?>">
     <?php wp_head(); ?>
 </head>
 <body <?php body_class(); ?>>
