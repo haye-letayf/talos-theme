@@ -5,17 +5,12 @@
  * "value" en ACF), por eso necesitan un mapa de etiquetas igual que expense_subcategory
  * en Gastos.
  *
- * IMPORTANTE: estos campos (y company_rfc/company_website/company_account_manager)
- * viven anidados dentro de campos ACF tipo "Group" (Clasificación/Datos Fiscales/
- * Contacto y Ubicación). get_field() sobre un sub-campo de Group aquí devuelve
- * valores CRUZADOS entre empresas distintas (confirmado 2026-10-08: Kwik-E-Mart
- * está clasificada "Open Opportunity" en wp-admin pero get_field() regresaba
- * "client" en el front) — el mismo bug de Groups que ya nos mordió en el módulo
- * de Oportunidades (ver feedback_talos_platform_quirks en memoria), ahí resuelto
- * convirtiendo los Group a Tab. Mientras esa conversión no se haga en ACF, aquí
- * se evita get_field() para estos campos y se lee el meta crudo directo
- * (get_post_meta), que es consistente con lo que ya muestra el editor de wp-admin.
- * Nombre del meta key = mismo "name" del campo en ambos casos, Group no lo cambia.
+ * 2026-10-08: estos campos vivían anidados dentro de campos ACF tipo "Group"
+ * (Clasificación/Datos Fiscales/Contacto y Ubicación) y get_field() devolvía
+ * valores cruzados entre empresas distintas (mismo bug ya visto en Oportunidades).
+ * Jorge reestructuró "Perfil de Empresa" convirtiendo esos Group a Tab (puramente
+ * visual, mismos field names, sin pérdida de datos) — con los campos ya planos,
+ * se usa get_field() normal de nuevo.
  */
 
 $talos_estados_mx = array(
@@ -29,7 +24,7 @@ $talos_estados_mx = array(
     'yucatan'=>'Yucatán','zacatecas'=>'Zacatecas',
 );
 $talos_clase_labels = array( 'client'=>'Client', 'opportunity'=>'Open Opportunity', 'lead'=>'Lead', 'partner'=>'Partner', 'nfs'=>'NFS' );
-$talos_estatus_labels = array( 'active'=>'Active', 'standby'=>'Standby', 'inactive'=>'Inactive' );
+$talos_estatus_labels = array( 'active'=>'Active', 'inactive'=>'Inactive' );
 
 function talos_empresas_dominio( $url ) {
     $url = trim( (string) $url );
@@ -53,8 +48,8 @@ $talos_clientes_activos = 0;
 $talos_leads_oportunidad = 0;
 $talos_inactivas = 0;
 foreach ( $talos_empresas_ids as $id ) {
-    $clase   = get_post_meta( $id, 'company_class', true );
-    $estatus = get_post_meta( $id, 'company_status', true );
+    $clase   = get_field( 'company_class', $id );
+    $estatus = get_field( 'company_status', $id );
     if ( 'client' === $clase && 'active' === $estatus ) $talos_clientes_activos++;
     if ( in_array( $clase, array( 'lead', 'opportunity' ), true ) ) $talos_leads_oportunidad++;
     if ( 'inactive' === $estatus ) $talos_inactivas++;
@@ -108,13 +103,13 @@ get_header();
         <?php endif; ?>
         <?php foreach ( $talos_empresas_ids as $id ) :
             $nombre   = get_the_title( $id );
-            $clase    = get_post_meta( $id, 'company_class', true );
-            $estatus  = get_post_meta( $id, 'company_status', true );
-            $rfc      = get_post_meta( $id, 'company_rfc', true );
-            $estado   = get_post_meta( $id, 'company_state', true );
-            $dominio  = talos_empresas_dominio( get_post_meta( $id, 'company_website', true ) );
-            $am_id    = (int) get_post_meta( $id, 'company_account_manager', true );
-            $am_post  = $am_id ? get_post( $am_id ) : null;
+            $clase    = get_field( 'company_class', $id );
+            $estatus  = get_field( 'company_status', $id );
+            $rfc      = get_field( 'company_rfc', $id );
+            $estado   = get_field( 'company_state', $id );
+            $dominio  = talos_empresas_dominio( get_field( 'company_website', $id ) );
+            $am       = get_field( 'company_account_manager', $id );
+            $am_post  = ( $am instanceof WP_Post ) ? $am : null;
             ?>
             <tr data-estatus="<?php echo esc_attr( $estatus ); ?>" data-clase="<?php echo esc_attr( $clase ); ?>" data-nombre="<?php echo esc_attr( $nombre ); ?>">
               <td>

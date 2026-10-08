@@ -167,8 +167,6 @@ table td.num{text-align:right;}
 .pill.class-opportunity{background:#eee6fb;color:#6b3fb0;}
 .pill.class-partner{background:var(--success-soft);color:var(--success);}
 .pill.class-nfs{background:var(--surface-2);color:var(--text-muted);}
-.pill.status-standby{background:#fdf3d8;color:#8a6200;}
-.pill.status-standby .pill-dot{background:#8a6200;}
 .status-dot{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;}
 .status-dot.yes{background:var(--success-soft);color:var(--success);}
 .status-dot.no{background:var(--danger-soft);color:var(--danger);}
