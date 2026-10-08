@@ -255,14 +255,21 @@ get_header();
       <label for="campoNombre">Nombre de la oportunidad</label>
       <input type="text" id="campoNombre" placeholder="Ej. Página Web + Hosting">
     </div>
-    <div class="form-field">
-      <label for="campoEtapa">Etapa inicial</label>
-      <select id="campoEtapa">
-        <option value="prospeccion">Prospección</option>
-        <option value="propuesta_enviada">Propuesta Enviada</option>
-        <option value="en_negociacion">En Negociación</option>
-      </select>
+    <div class="form-row">
+      <div class="form-field">
+        <label for="campoValor">Valor estimado (MXN)</label>
+        <input type="number" id="campoValor" placeholder="0" step="100" min="0">
+      </div>
+      <div class="form-field">
+        <label for="campoEtapa">Etapa inicial</label>
+        <select id="campoEtapa">
+          <option value="prospeccion">Prospección</option>
+          <option value="propuesta_enviada">Propuesta Enviada</option>
+          <option value="en_negociacion">En Negociación</option>
+        </select>
+      </div>
     </div>
+    <span class="field-hint" style="display:block;margin:-8px 0 14px;">El valor captura un concepto genérico en la cotización — ábrela después en wp-admin para detallar los conceptos reales.</span>
     <div class="modal-actions">
       <button class="btn-ghost" data-close-modal>Cancelar</button>
       <button class="btn-confirm" id="btnConfirmarNuevaOportunidad">Crear Oportunidad</button>
@@ -323,11 +330,13 @@ try{
   var modalNueva = document.getElementById('modalNuevaOportunidad');
   var campoEmpresa = document.getElementById('campoEmpresa');
   var campoNombre = document.getElementById('campoNombre');
+  var campoValor = document.getElementById('campoValor');
   var campoEtapa = document.getElementById('campoEtapa');
 
   function abrirModalNuevaOportunidad(etapaDefault){
     campoEmpresa.value = '';
     campoNombre.value = '';
+    campoValor.value = '';
     campoEtapa.value = etapaDefault || 'prospeccion';
     modalNueva.classList.add('show');
   }
@@ -352,6 +361,7 @@ try{
     form.append('nonce', talosNonceOpp);
     form.append('empresa_id', empresaId);
     form.append('nombre', nombre);
+    form.append('valor_estimado', campoValor.value || 0);
     form.append('etapa', campoEtapa.value);
     fetch(talosAjaxUrlOpp, { method: 'POST', body: form, credentials: 'same-origin' }).then(function(r){ return r.json(); }).then(function(res){
       if (!res.success){

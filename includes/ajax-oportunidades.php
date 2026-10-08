@@ -41,9 +41,10 @@ add_action( 'wp_ajax_talos_mover_etapa_oportunidad', 'talos_ajax_mover_etapa_opo
 function talos_ajax_crear_oportunidad() {
     talos_opp_verificar_nonce();
 
-    $empresa_id = isset( $_POST['empresa_id'] ) ? (int) $_POST['empresa_id'] : 0;
-    $nombre     = isset( $_POST['nombre'] ) ? sanitize_text_field( wp_unslash( $_POST['nombre'] ) ) : '';
-    $etapa      = isset( $_POST['etapa'] ) ? sanitize_text_field( wp_unslash( $_POST['etapa'] ) ) : 'prospeccion';
+    $empresa_id     = isset( $_POST['empresa_id'] ) ? (int) $_POST['empresa_id'] : 0;
+    $nombre         = isset( $_POST['nombre'] ) ? sanitize_text_field( wp_unslash( $_POST['nombre'] ) ) : '';
+    $etapa          = isset( $_POST['etapa'] ) ? sanitize_text_field( wp_unslash( $_POST['etapa'] ) ) : 'prospeccion';
+    $valor_estimado = isset( $_POST['valor_estimado'] ) ? (float) $_POST['valor_estimado'] : 0;
     $etapas_validas_creacion = array( 'prospeccion', 'propuesta_enviada', 'en_negociacion' );
 
     if ( ! $empresa_id || 'talos_company' !== get_post_type( $empresa_id ) ) {
@@ -69,6 +70,27 @@ function talos_ajax_crear_oportunidad() {
     update_field( 'opportunity_company', $empresa_id, $nuevo_id );
     update_field( 'opportunity_name', $nombre, $nuevo_id );
     update_field( 'opportunity_stage', $etapa, $nuevo_id );
+
+    // No hay campo plano de "valor estimado" en Oportunidades — el total de la
+    // tarjeta siempre sale de sumar quote_items. Para que el número capturado
+    // aquí se refleje de inmediato, se crea un primer concepto genérico (sin
+    // servicio de catálogo asociado) con ese valor; Jorge lo detalla/reemplaza
+    // después en wp-admin cuando tenga los conceptos reales de la cotización.
+    if ( $valor_estimado > 0 ) {
+        update_field( 'quote_items', array( array(
+            'service_item'                => '',
+            'service_invoice_description' => 'Estimado inicial — pendiente de detallar',
+            'service_frequency'           => '',
+            'service_quantity'            => 1,
+            'service_price'               => $valor_estimado,
+            'service_cost'                => 0,
+            'service_applies_iva'         => 0,
+            'item_has_discount'           => 0,
+            'item_discount_type'          => '',
+            'item_discount_value'         => 0,
+        ) ), $nuevo_id );
+    }
+
     do_action( 'acf/save_post', $nuevo_id ); // genera quote_reference + vigencia por defecto
 
     $empresa_post = get_post( $empresa_id );

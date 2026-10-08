@@ -120,6 +120,9 @@ if ( $talos_es_seccion_con_mes ) {
 </aside>
 
 <div class="shell">
+  <?php if ( function_exists( 'talos_modo_pruebas_activo' ) && talos_modo_pruebas_activo() ) : ?>
+  <div class="banner-pruebas">⚠ MODO PRUEBAS ACTIVO — todos los correos se redirigen a <?php echo esc_html( get_option( 'talos_modo_pruebas_correo', 'jorgeletayf@gmail.com' ) ); ?>. Desactívalo en Ajustes → Talos: Modo Pruebas cuando termines.</div>
+  <?php endif; ?>
   <header class="topbar">
     <button class="menu-btn" id="menuBtn" aria-label="Abrir menú"><svg viewBox="0 0 24 24"><use href="#i-menu"/></svg></button>
     <div class="search-box"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg><input type="text" id="talosBuscadorGlobal" placeholder="Buscar empresa, contacto, oportunidad…" autocomplete="off"></div>
