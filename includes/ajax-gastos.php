@@ -24,3 +24,29 @@ function talos_ajax_marcar_pagado_gasto() {
     wp_send_json_success( array( 'fecha_chip' => $fecha_chip ) );
 }
 add_action( 'wp_ajax_talos_marcar_pagado_gasto', 'talos_ajax_marcar_pagado_gasto' );
+
+/**
+ * Elimina (mueve a la papelera de WordPress, NO borrado permanente) uno o
+ * varios Gastos. Igual criterio que Ingresos: recuperable desde wp-admin.
+ */
+function talos_ajax_eliminar_gasto() {
+    if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'talos_gastos' ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Sesión inválida, recarga la página.' ), 403 );
+    }
+    $ids = array_map( 'intval', (array) ( $_POST['ids'] ?? array() ) );
+    $ids = array_filter( $ids );
+    if ( empty( $ids ) ) {
+        wp_send_json_error( array( 'mensaje' => 'No se recibieron gastos a eliminar.' ) );
+    }
+
+    $eliminados = array();
+    foreach ( $ids as $id ) {
+        if ( 'talos_expense' !== get_post_type( $id ) ) continue;
+        if ( wp_trash_post( $id ) ) {
+            $eliminados[] = $id;
+        }
+    }
+
+    wp_send_json_success( array( 'ids' => $eliminados ) );
+}
+add_action( 'wp_ajax_talos_eliminar_gasto', 'talos_ajax_eliminar_gasto' );

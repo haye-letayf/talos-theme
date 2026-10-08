@@ -161,6 +161,7 @@ get_header();
     <span id="selectionCount">0 seleccionados</span>
     <button class="btn-send" id="btnEnviar" disabled><svg viewBox="0 0 24 24"><use href="#i-send"/></svg>Enviar Notas/Facturas</button>
     <button class="btn-send btn-send-pay" id="btnPagoMasivo" disabled><svg viewBox="0 0 24 24"><use href="#i-check"/></svg>Registrar Pago Masivo</button>
+    <button class="btn-danger" id="btnEliminarMasivo" disabled><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg>Eliminar Seleccionados</button>
   </div>
 </div>
 
@@ -181,11 +182,12 @@ get_header();
           <th data-sort-key="enviado"><span class="th-flex">Enviado<button class="sort-btn" data-sort-key="enviado"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
           <th data-sort-key="pagado"><span class="th-flex">Pagado<button class="sort-btn" data-sort-key="pagado"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
           <th>Factura</th>
+          <th></th>
         </tr>
       </thead>
       <tbody id="incomeBody">
         <?php if ( empty( $talos_filas ) ) : ?>
-          <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:30px;">Sin ingresos registrados para este mes.</td></tr>
+          <tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:30px;">Sin ingresos registrados para este mes.</td></tr>
         <?php endif; ?>
         <?php foreach ( $talos_filas as $fila ) :
             $id = $fila['id'];
@@ -240,6 +242,7 @@ get_header();
                   <span class="attach-muted">—</span>
                 <?php endif; ?>
               </td>
+              <td><button class="action-btn delete" data-role="delete" title="Eliminar (a la papelera)"><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg></button></td>
             </tr>
         <?php endforeach; ?>
       </tbody>
@@ -269,6 +272,19 @@ get_header();
     <div class="modal-actions">
       <button class="btn-ghost" data-close-modal>Cancelar</button>
       <button class="btn-confirm" id="btnConfirmarPago" style="background:var(--success);">Sí, registrar y enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: confirmar eliminación (a la papelera) ===== -->
+<div class="modal-overlay" id="modalEliminar">
+  <div class="modal-box">
+    <div class="modal-icon" style="background:var(--danger-soft);color:var(--danger);"><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg></div>
+    <h4 id="modalEliminarTitulo">¿Eliminar este ingreso?</h4>
+    <p id="modalEliminarTexto">Se moverá a la papelera de WordPress — podrás restaurarlo desde ahí si fue un error.</p>
+    <div class="modal-actions">
+      <button class="btn-ghost" data-close-modal>Cancelar</button>
+      <button class="btn-confirm" id="btnConfirmarEliminar" style="background:var(--danger);">Sí, eliminar</button>
     </div>
   </div>
 </div>
@@ -416,6 +432,7 @@ try{
     document.getElementById('selectionBar').classList.toggle('show', checked.length > 0);
     document.getElementById('btnEnviar').disabled = checked.length === 0;
     document.getElementById('btnPagoMasivo').disabled = checked.length === 0;
+    document.getElementById('btnEliminarMasivo').disabled = checked.length === 0;
   }
   var checkAllEl = document.getElementById('checkAll');
   if (checkAllEl) checkAllEl.addEventListener('change', function(){
@@ -565,6 +582,37 @@ try{
   document.getElementById('btnSubirXml').addEventListener('click', function(){ document.getElementById('facturaXmlInput').click(); });
   document.getElementById('facturaPdfInput').addEventListener('change', function(e){ subirArchivoFactura('pdf', e.target.files[0]); e.target.value = ''; });
   document.getElementById('facturaXmlInput').addEventListener('change', function(e){ subirArchivoFactura('xml', e.target.files[0]); e.target.value = ''; });
+
+  // ===== Eliminar (individual o masivo) — mueve a la papelera de WordPress =====
+  var modalEliminar = document.getElementById('modalEliminar');
+  var idsParaEliminar = [];
+  function solicitarEliminar(ids){
+    idsParaEliminar = ids;
+    var clientes = nombresClientes(ids);
+    var n = ids.length;
+    document.getElementById('modalEliminarTitulo').textContent = n === 1 ? '¿Eliminar este ingreso?' : '¿Eliminar ' + n + ' ingresos?';
+    document.getElementById('modalEliminarTexto').textContent = (n === 1
+      ? 'Se moverá a la papelera de WordPress (de ' + (clientes[0] || 'este cliente') + ')'
+      : 'Se moverán ' + n + ' ingresos a la papelera de WordPress') + ' — podrás restaurarlos desde ahí si fue un error.';
+    modalEliminar.classList.add('show');
+  }
+  document.querySelectorAll('[data-role="delete"]').forEach(function(btn){
+    btn.addEventListener('click', function(){ solicitarEliminar([btn.closest('tr').getAttribute('data-income-id')]); });
+  });
+  document.getElementById('btnEliminarMasivo').addEventListener('click', function(){ solicitarEliminar(idsSeleccionados()); });
+  modalEliminar.querySelectorAll('[data-close-modal]').forEach(function(b){ b.addEventListener('click', function(){ modalEliminar.classList.remove('show'); }); });
+  document.getElementById('btnConfirmarEliminar').addEventListener('click', function(){
+    talosPost('talos_eliminar_income', { ids: idsParaEliminar }).then(function(res){
+      modalEliminar.classList.remove('show');
+      if (!res.success){ mostrarToast(res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo eliminar.'); return; }
+      res.data.ids.forEach(function(id){
+        var row = document.querySelector('[data-income-id="' + id + '"]');
+        if (row) row.remove();
+      });
+      updateSelectionBar();
+      mostrarToast(res.data.ids.length + ' ingreso(s) movido(s) a la papelera.');
+    });
+  });
 }catch(e){ console.error(e); }
 </script>
 

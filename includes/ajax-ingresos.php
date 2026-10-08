@@ -358,3 +358,28 @@ function talos_ajax_subir_factura_archivo() {
     ) );
 }
 add_action( 'wp_ajax_talos_subir_factura_archivo', 'talos_ajax_subir_factura_archivo' );
+
+/**
+ * Elimina (mueve a la papelera de WordPress, NO borrado permanente) uno o
+ * varios Ingresos. Trash en vez de delete definitivo a propósito: son
+ * registros financieros, un error aquí debe ser recuperable desde wp-admin.
+ */
+function talos_ajax_eliminar_income() {
+    talos_ing_verificar_nonce();
+    $ids = array_map( 'intval', (array) ( $_POST['ids'] ?? array() ) );
+    $ids = array_filter( $ids );
+    if ( empty( $ids ) ) {
+        wp_send_json_error( array( 'mensaje' => 'No se recibieron ingresos a eliminar.' ) );
+    }
+
+    $eliminados = array();
+    foreach ( $ids as $id ) {
+        if ( 'talos_income' !== get_post_type( $id ) ) continue;
+        if ( wp_trash_post( $id ) ) {
+            $eliminados[] = $id;
+        }
+    }
+
+    wp_send_json_success( array( 'ids' => $eliminados ) );
+}
+add_action( 'wp_ajax_talos_eliminar_income', 'talos_ajax_eliminar_income' );

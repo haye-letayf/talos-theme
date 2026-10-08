@@ -180,6 +180,10 @@ get_header();
     <button data-filter="atrasado">Atrasados</button>
   </div>
   <div class="seg-spacer"></div>
+  <div class="selection-bar" id="selectionBar">
+    <span id="selectionCount">0 seleccionados</span>
+    <button class="btn-danger" id="btnEliminarMasivo" disabled><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg>Eliminar Seleccionados</button>
+  </div>
 </div>
 
 <div class="table-card">
@@ -190,17 +194,19 @@ get_header();
     <table class="expenses" id="expensesTable">
       <thead>
         <tr>
+          <th><input type="checkbox" class="row-check" id="checkAllGastos"></th>
           <th data-sort-key="mes"><span class="th-flex">Mes<button class="sort-btn" data-sort-key="mes"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
           <th data-sort-key="categoria"><span class="th-flex">Categoría<button class="sort-btn" data-sort-key="categoria"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
           <th data-sort-key="subcategoria"><span class="th-flex">Subcategoría<button class="sort-btn" data-sort-key="subcategoria"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
           <th data-sort-key="proveedor"><span class="th-flex">Proveedor / Descripción<button class="sort-btn" data-sort-key="proveedor"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
           <th class="num" data-sort-key="monto"><span class="th-flex">Monto<button class="sort-btn" data-sort-key="monto"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
           <th data-sort-key="pagado"><span class="th-flex">Pagado<button class="sort-btn" data-sort-key="pagado"><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></button></span></th>
+          <th></th>
         </tr>
       </thead>
       <tbody id="expenseBody">
         <?php if ( empty( $talos_filas ) ) : ?>
-          <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:30px;">Sin gastos registrados para este mes.</td></tr>
+          <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px;">Sin gastos registrados para este mes.</td></tr>
         <?php endif; ?>
         <?php foreach ( $talos_filas as $fila ) :
             $id = $fila['id'];
@@ -217,6 +223,7 @@ get_header();
                 data-sort-proveedor="<?php echo esc_attr( get_field( 'expense_supplier', $id ) ); ?>"
                 data-sort-monto="<?php echo esc_attr( $monto ); ?>"
                 data-sort-pagado="<?php echo $pagado ? 1 : 0; ?>">
+              <td><input type="checkbox" class="row-check"></td>
               <td>
                 <?php echo esc_html( talos_gastos_mes_corto( get_field( 'expense_period', $id ), $talos_meses_cortos ) ); ?>
                 <?php if ( 'atrasado' === $fila['grupo'] ) : ?><div class="late-badge">⚠ Atrasado</div><?php endif; ?>
@@ -232,6 +239,7 @@ get_header();
                   <button class="btn-pay" data-role="pay">Marcar Pagado</button>
                 <?php endif; ?>
               </td>
+              <td><button class="action-btn delete" data-role="delete" title="Eliminar (a la papelera)"><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg></button></td>
             </tr>
         <?php endforeach; ?>
       </tbody>
@@ -247,6 +255,18 @@ get_header();
     <div class="modal-actions">
       <button class="btn-ghost" data-close-modal>Cancelar</button>
       <button class="btn-confirm" id="btnConfirmarPagoGasto" style="background:var(--success);">Sí, marcar pagado</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalEliminarGasto">
+  <div class="modal-box">
+    <div class="modal-icon" style="background:var(--danger-soft);color:var(--danger);"><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg></div>
+    <h4 id="modalEliminarGastoTitulo">¿Eliminar este gasto?</h4>
+    <p id="modalEliminarGastoTexto">Se moverá a la papelera de WordPress — podrás restaurarlo desde ahí si fue un error.</p>
+    <div class="modal-actions">
+      <button class="btn-ghost" data-close-modal>Cancelar</button>
+      <button class="btn-confirm" id="btnConfirmarEliminarGasto" style="background:var(--danger);">Sí, eliminar</button>
     </div>
   </div>
 </div>
@@ -333,6 +353,55 @@ try{
   // Nuevo Gasto e Importar AMEX: el botón de AMEX ya enlaza al importador real de wp-admin.
   document.getElementById('btnNuevoGasto').addEventListener('click', function(){
     mostrarToastGastos('Registrar un gasto eventual desde aquí — próximamente en esta misma pantalla.');
+  });
+
+  // ===== Selección de filas + Eliminar (individual o masivo) =====
+  function updateSelectionBarGastos(){
+    var checked = document.querySelectorAll('#expenseBody .row-check:checked');
+    document.getElementById('selectionCount').textContent = checked.length + ' seleccionado' + (checked.length === 1 ? '' : 's');
+    document.getElementById('selectionBar').classList.toggle('show', checked.length > 0);
+    document.getElementById('btnEliminarMasivo').disabled = checked.length === 0;
+  }
+  var checkAllGastosEl = document.getElementById('checkAllGastos');
+  if (checkAllGastosEl) checkAllGastosEl.addEventListener('change', function(){
+    document.querySelectorAll('#expenseBody .row-check').forEach(function(c){ c.checked = checkAllGastosEl.checked; });
+    updateSelectionBarGastos();
+  });
+  document.querySelectorAll('#expenseBody .row-check').forEach(function(c){ c.addEventListener('change', updateSelectionBarGastos); });
+
+  function idsSeleccionadosGastos(){
+    return Array.from(document.querySelectorAll('#expenseBody .row-check:checked')).map(function(c){ return c.closest('tr').getAttribute('data-expense-id'); });
+  }
+
+  var modalEliminarGasto = document.getElementById('modalEliminarGasto');
+  var idsParaEliminarGastos = [];
+  function solicitarEliminarGasto(ids){
+    idsParaEliminarGastos = ids;
+    var n = ids.length;
+    document.getElementById('modalEliminarGastoTitulo').textContent = n === 1 ? '¿Eliminar este gasto?' : '¿Eliminar ' + n + ' gastos?';
+    document.getElementById('modalEliminarGastoTexto').textContent = (n === 1 ? 'Se moverá a la papelera de WordPress' : 'Se moverán ' + n + ' gastos a la papelera de WordPress') + ' — podrás restaurarlos desde ahí si fue un error.';
+    modalEliminarGasto.classList.add('show');
+  }
+  document.querySelectorAll('[data-role="delete"]').forEach(function(btn){
+    btn.addEventListener('click', function(){ solicitarEliminarGasto([btn.closest('tr').getAttribute('data-expense-id')]); });
+  });
+  document.getElementById('btnEliminarMasivo').addEventListener('click', function(){ solicitarEliminarGasto(idsSeleccionadosGastos()); });
+  modalEliminarGasto.querySelectorAll('[data-close-modal]').forEach(function(b){ b.addEventListener('click', function(){ modalEliminarGasto.classList.remove('show'); }); });
+  document.getElementById('btnConfirmarEliminarGasto').addEventListener('click', function(){
+    var form = new FormData();
+    form.append('action', 'talos_eliminar_gasto');
+    form.append('nonce', talosNonceGastos);
+    idsParaEliminarGastos.forEach(function(id){ form.append('ids[]', id); });
+    fetch(talosAjaxUrlGastos, { method: 'POST', body: form, credentials: 'same-origin' }).then(function(r){ return r.json(); }).then(function(res){
+      modalEliminarGasto.classList.remove('show');
+      if (!res.success){ mostrarToastGastos(res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo eliminar.'); return; }
+      res.data.ids.forEach(function(id){
+        var row = document.querySelector('[data-expense-id="' + id + '"]');
+        if (row) row.remove();
+      });
+      updateSelectionBarGastos();
+      mostrarToastGastos(res.data.ids.length + ' gasto(s) movido(s) a la papelera.');
+    });
   });
 }catch(e){ console.error(e); }
 </script>
