@@ -40,4 +40,33 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     });
   } catch (e) {}
+
+  // Selector de mes rápido (topbar): clic en el mes abre un popover con
+  // Mes+Año para saltar directo, en vez de dar clic en < > uno por uno.
+  try {
+    var btnAbrirSelectorMes = document.getElementById('btnAbrirSelectorMes');
+    var popoverSelectorMes = document.getElementById('popoverSelectorMes');
+    if (btnAbrirSelectorMes && popoverSelectorMes) {
+      btnAbrirSelectorMes.addEventListener('click', function (e) {
+        e.stopPropagation();
+        popoverSelectorMes.classList.toggle('show');
+      });
+      popoverSelectorMes.addEventListener('click', function (e) { e.stopPropagation(); });
+      document.addEventListener('click', function () {
+        popoverSelectorMes.classList.remove('show');
+      });
+      var btnIrAMes = document.getElementById('btnIrAMes');
+      if (btnIrAMes) {
+        btnIrAMes.addEventListener('click', function () {
+          var mes = document.getElementById('selectorMesRapidoMes').value;
+          var anio = document.getElementById('selectorMesRapidoAnio').value;
+          if (!mes || !anio) return;
+          var mesStr = mes.length < 2 ? '0' + mes : mes;
+          var url = new URL(window.location.href);
+          url.searchParams.set('mes', anio + '-' + mesStr);
+          window.location.href = url.toString();
+        });
+      }
+    }
+  } catch (e) {}
 });

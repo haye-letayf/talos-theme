@@ -129,7 +129,20 @@ if ( $talos_es_seccion_con_mes ) {
     <?php if ( $talos_es_seccion_con_mes ) : ?>
     <div class="topbar-mes">
       <a href="<?php echo esc_url( $talos_topbar_mes_prev ); ?>" class="icon-btn" aria-label="Mes anterior"><svg viewBox="0 0 24 24"><use href="#i-chevron-left"/></svg></a>
-      <span class="month-picker" aria-live="polite"><?php echo esc_html( $talos_mes_activo_label ); ?></span>
+      <div class="month-picker-wrap">
+        <button type="button" class="month-picker" id="btnAbrirSelectorMes" aria-live="polite"><?php echo esc_html( $talos_mes_activo_label ); ?></button>
+        <div class="month-picker-pop" id="popoverSelectorMes">
+          <div class="month-picker-pop-row">
+            <select id="selectorMesRapidoMes">
+              <?php foreach ( talos_meses_es() as $num => $nombre ) : ?>
+                <option value="<?php echo esc_attr( $num ); ?>" <?php selected( $num, (int) $talos_mes_activo->format( 'n' ) ); ?>><?php echo esc_html( $nombre ); ?></option>
+              <?php endforeach; ?>
+            </select>
+            <input type="number" id="selectorMesRapidoAnio" value="<?php echo esc_attr( $talos_mes_activo->format( 'Y' ) ); ?>" min="2015" max="2100">
+          </div>
+          <button type="button" class="btn-primary" id="btnIrAMes">Ir</button>
+        </div>
+      </div>
       <a href="<?php echo esc_url( $talos_topbar_mes_next ); ?>" class="icon-btn" aria-label="Mes siguiente"><svg viewBox="0 0 24 24"><use href="#i-chevron-right"/></svg></a>
     </div>
     <?php endif; ?>
