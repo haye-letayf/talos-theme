@@ -92,10 +92,61 @@ function talos_dashboard_totales_empresas() {
     return array( 'clientes_activos' => $clientes_activos, 'leads_oportunidad' => $leads_oportunidad );
 }
 
+/**
+ * Clientes activos agrupados por Account Manager (talos_team) — a Jorge
+ * deliberadamente no se le muestra en esta cartera, se excluye comparando
+ * contra el usuario de WP que está viendo la página, no un nombre fijo.
+ */
+function talos_dashboard_cartera_por_asesor() {
+    $usuario_actual = wp_get_current_user();
+
+    $miembros = get_posts( array(
+        'post_type'      => 'talos_team',
+        'post_status'    => 'publish',
+        'posts_per_page' => -1,
+        'fields'         => 'ids',
+        'orderby'        => 'title',
+        'order'          => 'ASC',
+    ) );
+
+    $cartera = array();
+    foreach ( $miembros as $miembro_id ) {
+        $nombre = get_the_title( $miembro_id );
+        if ( $usuario_actual && 0 === strcasecmp( $nombre, $usuario_actual->display_name ) ) continue;
+        $cartera[ $miembro_id ] = array( 'nombre' => $nombre, 'clientes' => array() );
+    }
+
+    $empresas = get_posts( array(
+        'post_type'      => 'talos_company',
+        'post_status'    => 'publish',
+        'posts_per_page' => -1,
+        'fields'         => 'ids',
+    ) );
+    foreach ( $empresas as $empresa_id ) {
+        if ( 'client' !== get_field( 'company_class', $empresa_id ) ) continue;
+        if ( 'active' !== get_field( 'company_status', $empresa_id ) ) continue;
+        $am = get_field( 'company_account_manager', $empresa_id );
+        $am_id = ( $am instanceof WP_Post ) ? $am->ID : 0;
+        if ( $am_id && isset( $cartera[ $am_id ] ) ) {
+            $cartera[ $am_id ]['clientes'][] = get_the_title( $empresa_id );
+        }
+    }
+
+    foreach ( $cartera as &$asesor ) {
+        sort( $asesor['clientes'], SORT_STRING | SORT_FLAG_CASE );
+    }
+    unset( $asesor );
+
+    $cartera = array_values( $cartera );
+    usort( $cartera, function ( $a, $b ) { return count( $b['clientes'] ) - count( $a['clientes'] ); } );
+    return $cartera;
+}
+
 $talos_mes_actual   = talos_mes_activo();
 $talos_mes_anterior = ( clone $talos_mes_actual )->modify( '-1 month' );
 
 $talos_empresas_totales = talos_dashboard_totales_empresas();
+$talos_cartera_asesores = talos_dashboard_cartera_por_asesor();
 $talos_income_actual   = talos_dashboard_totales_income( $talos_mes_actual );
 $talos_income_anterior = talos_dashboard_totales_income( $talos_mes_anterior );
 $talos_expense_actual  = talos_dashboard_totales_expense( $talos_mes_actual );
@@ -137,6 +188,17 @@ get_header();
   @media (max-width:560px){.kpi-grid{grid-template-columns:1fr;}.page-head{align-items:flex-start;}}
   .kpi-grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr));}
   @media (max-width:560px){.kpi-grid.cols-2{grid-template-columns:1fr;}}
+
+  .asesor-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;}
+  @media (max-width:1024px){.asesor-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+  @media (max-width:560px){.asesor-grid{grid-template-columns:1fr;}}
+  .asesor-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;}
+  .asesor-top{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .asesor-count{font-size:26px;font-weight:800;margin:0 0 2px;letter-spacing:-.01em;}
+  .asesor-count-label{font-size:11.5px;color:var(--text-muted);font-weight:600;margin:0 0 12px;}
+  .asesor-lista{max-height:132px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;}
+  .asesor-cliente{font-size:12.5px;color:var(--text);padding:5px 9px;background:var(--surface-2);border-radius:6px;}
+  .asesor-vacio{font-size:12.5px;color:var(--text-muted);font-style:italic;}
 </style>
 
 <div class="page-head">
@@ -211,6 +273,32 @@ get_header();
     <p class="kpi-label">Leads / Oportunidad</p>
     <p class="kpi-value tabular"><?php echo esc_html( $talos_empresas_totales['leads_oportunidad'] ); ?></p>
   </div>
+</div>
+
+<div class="kpi-section-label">Cartera por Asesor</div>
+<div class="asesor-grid">
+  <?php foreach ( $talos_cartera_asesores as $asesor ) : ?>
+    <div class="asesor-card">
+      <div class="asesor-top">
+        <div class="person-ava"><?php echo esc_html( talos_iniciales( $asesor['nombre'] ) ); ?></div>
+        <div class="person-name"><?php echo esc_html( $asesor['nombre'] ); ?></div>
+      </div>
+      <p class="asesor-count tabular"><?php echo esc_html( count( $asesor['clientes'] ) ); ?></p>
+      <p class="asesor-count-label">cliente<?php echo 1 === count( $asesor['clientes'] ) ? '' : 's'; ?> activo<?php echo 1 === count( $asesor['clientes'] ) ? '' : 's'; ?></p>
+      <?php if ( empty( $asesor['clientes'] ) ) : ?>
+        <p class="asesor-vacio">Sin clientes asignados.</p>
+      <?php else : ?>
+        <div class="asesor-lista">
+          <?php foreach ( $asesor['clientes'] as $cliente_nombre ) : ?>
+            <div class="asesor-cliente"><?php echo esc_html( $cliente_nombre ); ?></div>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
+    </div>
+  <?php endforeach; ?>
+  <?php if ( empty( $talos_cartera_asesores ) ) : ?>
+    <p style="color:var(--text-muted);">Sin miembros de equipo registrados.</p>
+  <?php endif; ?>
 </div>
 
 <?php get_footer(); ?>
