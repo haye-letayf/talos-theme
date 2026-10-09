@@ -29,6 +29,31 @@ function talos_bit_prioridad_labels() {
     );
 }
 
+/**
+ * Días de margen implícitos en cada prioridad (ya anunciados en su propia
+ * etiqueta: "Urgente (menos de 24 hrs)", etc.) — se usan para calcular
+ * "vencida" a partir de Fecha de Solicitud, sin necesitar una fecha de
+ * entrega manual. "otra" no tiene ventana definida, se deja sin SLA.
+ */
+function talos_bit_sla_dias() {
+    return array(
+        'urgente' => 1,
+        'media'   => 3,
+        'baja'    => 6,
+    );
+}
+
+/**
+ * Valida que una fecha venga en Y-m-d y no sea futura (hoy sí se permite) —
+ * usado para Fecha de Solicitud: se registra cuándo pidió el cliente, nunca
+ * una fecha que todavía no ha llegado.
+ */
+function talos_bit_validar_fecha_no_futura( $fecha ) {
+    $dt = DateTime::createFromFormat( 'Y-m-d', $fecha );
+    if ( ! $dt ) return false;
+    return $dt <= new DateTime( 'today' );
+}
+
 function talos_bit_verificar_nonce() {
     if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'talos_bitacora' ) ) {
         wp_send_json_error( array( 'mensaje' => 'Sesión inválida, recarga la página.' ), 403 );
@@ -73,9 +98,9 @@ function talos_ajax_crear_peticion() {
     }
     $prioridad_otro = isset( $_POST['prioridad_otro'] ) ? sanitize_text_field( wp_unslash( $_POST['prioridad_otro'] ) ) : '';
 
-    $fecha_entrega = isset( $_POST['fecha_entrega'] ) ? sanitize_text_field( wp_unslash( $_POST['fecha_entrega'] ) ) : '';
-    if ( ! $fecha_entrega || ! DateTime::createFromFormat( 'Y-m-d', $fecha_entrega ) ) {
-        wp_send_json_error( array( 'mensaje' => 'Captura la fecha de entrega.' ) );
+    $fecha_solicitud = isset( $_POST['fecha_solicitud'] ) ? sanitize_text_field( wp_unslash( $_POST['fecha_solicitud'] ) ) : '';
+    if ( ! $fecha_solicitud || ! talos_bit_validar_fecha_no_futura( $fecha_solicitud ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Captura la fecha de solicitud (hoy o anterior, no puede ser futura).' ) );
     }
 
     $nuevo_id = wp_insert_post( array(
@@ -94,7 +119,7 @@ function talos_ajax_crear_peticion() {
     update_field( 'request_description', $descripcion, $nuevo_id );
     update_field( 'request_priority', $prioridad, $nuevo_id );
     update_field( 'request_priority_other', $prioridad_otro, $nuevo_id );
-    update_field( 'request_due_date', str_replace( '-', '', $fecha_entrega ), $nuevo_id );
+    update_field( 'request_date', str_replace( '-', '', $fecha_solicitud ), $nuevo_id );
     update_field( 'request_status', 'pendiente', $nuevo_id );
 
     wp_send_json_success( array( 'id' => $nuevo_id ) );
@@ -131,9 +156,9 @@ function talos_ajax_guardar_peticion() {
     }
     $prioridad_otro = isset( $_POST['prioridad_otro'] ) ? sanitize_text_field( wp_unslash( $_POST['prioridad_otro'] ) ) : '';
 
-    $fecha_entrega = isset( $_POST['fecha_entrega'] ) ? sanitize_text_field( wp_unslash( $_POST['fecha_entrega'] ) ) : '';
-    if ( ! $fecha_entrega || ! DateTime::createFromFormat( 'Y-m-d', $fecha_entrega ) ) {
-        wp_send_json_error( array( 'mensaje' => 'Captura la fecha de entrega.' ) );
+    $fecha_solicitud = isset( $_POST['fecha_solicitud'] ) ? sanitize_text_field( wp_unslash( $_POST['fecha_solicitud'] ) ) : '';
+    if ( ! $fecha_solicitud || ! talos_bit_validar_fecha_no_futura( $fecha_solicitud ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Captura la fecha de solicitud (hoy o anterior, no puede ser futura).' ) );
     }
 
     wp_update_post( array( 'ID' => $id, 'post_title' => talos_bit_titulo( $tipo, $tipo_otro, $empresa_id ) ) );
@@ -144,7 +169,7 @@ function talos_ajax_guardar_peticion() {
     update_field( 'request_description', $descripcion, $id );
     update_field( 'request_priority', $prioridad, $id );
     update_field( 'request_priority_other', $prioridad_otro, $id );
-    update_field( 'request_due_date', str_replace( '-', '', $fecha_entrega ), $id );
+    update_field( 'request_date', str_replace( '-', '', $fecha_solicitud ), $id );
 
     wp_send_json_success();
 }
@@ -152,7 +177,9 @@ add_action( 'wp_ajax_talos_guardar_peticion', 'talos_ajax_guardar_peticion' );
 
 /**
  * Mueve la petición a la siguiente etapa (Pendiente -> En Proceso -> Completada).
- * Sin drag&drop: el botón en la tarjeta ya trae la etapa destino fija.
+ * Sin drag&drop: el botón en la tarjeta ya trae la etapa destino fija. Al
+ * llegar a Completada, Fecha de Entrega se registra sola con el día de hoy —
+ * nunca se captura a mano, es la base para medir tiempos de respuesta real.
  */
 function talos_ajax_mover_etapa_peticion() {
     talos_bit_verificar_nonce();
@@ -168,6 +195,9 @@ function talos_ajax_mover_etapa_peticion() {
     }
 
     update_field( 'request_status', $etapa, $id );
+    if ( 'completada' === $etapa ) {
+        update_field( 'request_completed_date', current_time( 'Ymd' ), $id );
+    }
 
     wp_send_json_success();
 }

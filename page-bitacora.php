@@ -5,10 +5,17 @@
  * drag&drop: mover de etapa es un botón fijo por tarjeta ("Siguiente etapa"),
  * según decisión explícita de Jorge. Reemplaza al formulario de Fluent Forms
  * "Bitácora Once24" (que mandaba a Trello + Google Sheets) — ver conversación
- * de referencia: mismos campos (Empresa/Tipo/Descripción/Prioridad/Fecha de
- * Entrega), con dos cambios: "Cuenta" ahora es relación real a talos_company
- * en vez de una lista de texto fija, y "Elige tu Nombre" se elimina — el
- * autor se captura solo del usuario de WordPress con sesión (post_author).
+ * de referencia: mismos campos (Empresa/Tipo/Descripción/Prioridad), con
+ * varios cambios: "Cuenta" ahora es relación real a talos_company en vez de
+ * una lista de texto fija; "Elige tu Nombre" se elimina — el autor se
+ * captura solo del usuario de WordPress con sesión (post_author); y la
+ * "Fecha de Entrega" del formulario viejo (una fecha límite futura) se
+ * reemplazó por "Fecha de Solicitud" (cuándo pidió el cliente — hoy o
+ * antes, nunca futura, para medir desempeño real) + una "Fecha de Entrega"
+ * NUEVA que se registra sola al mover la tarjeta a Completada. "Vencida"
+ * ya no depende de una fecha límite manual: se calcula con días transcurridos
+ * desde Fecha de Solicitud contra el margen que ya anuncia la Prioridad
+ * (Urgente/Media/Baja) — ver talos_bit_sla_dias() en ajax-bitacora.php.
  *
  * Crear/editar/mover NO requieren manage_options (ver ajax-bitacora.php) para
  * que el rol Consulta pueda registrar y avanzar sus propias peticiones sin
@@ -41,6 +48,8 @@ $talos_bit_por_etapa = array_fill_keys( array_keys( $talos_bit_etapas ), array()
 $talos_bit_datos = array();
 $talos_bit_uid_actual = get_current_user_id();
 
+$talos_bit_sla = talos_bit_sla_dias();
+
 foreach ( $talos_bit_ids as $id ) {
     $etapa = get_field( 'request_status', $id );
     if ( ! isset( $talos_bit_por_etapa[ $etapa ] ) ) continue;
@@ -50,13 +59,23 @@ foreach ( $talos_bit_ids as $id ) {
     $tipo_otro = get_field( 'request_type_other', $id );
     $prioridad = get_field( 'request_priority', $id );
     $prioridad_otro = get_field( 'request_priority_other', $id );
-    $fecha_entrega = get_field( 'request_due_date', $id );
+    $fecha_solicitud = get_field( 'request_date', $id );
+    $fecha_entrega = get_field( 'request_completed_date', $id );
     $autor_id = (int) get_post_field( 'post_author', $id );
 
-    $dias = null;
-    if ( $fecha_entrega ) {
-        $venc = DateTime::createFromFormat( 'Y-m-d', $fecha_entrega );
-        if ( $venc ) $dias = (int) $talos_bit_hoy->diff( $venc )->format( '%r%a' );
+    // "Vencida" se calcula solo: días transcurridos desde la Fecha de Solicitud
+    // contra el margen que ya anuncia la propia Prioridad (Urgente/Media/Baja) —
+    // no depende de ninguna fecha límite capturada a mano.
+    $dias_transcurridos = null;
+    $dias_fuera_sla = null;
+    if ( $fecha_solicitud ) {
+        $sol = DateTime::createFromFormat( 'Y-m-d', $fecha_solicitud );
+        if ( $sol ) {
+            $dias_transcurridos = (int) $sol->diff( $talos_bit_hoy )->format( '%a' );
+            if ( isset( $talos_bit_sla[ $prioridad ] ) ) {
+                $dias_fuera_sla = $dias_transcurridos - $talos_bit_sla[ $prioridad ];
+            }
+        }
     }
 
     $talos_bit_datos[ $id ] = array(
@@ -69,9 +88,10 @@ foreach ( $talos_bit_ids as $id ) {
         'prioridad'       => $prioridad,
         'prioridad_label' => ( 'otra' === $prioridad && $prioridad_otro ) ? $prioridad_otro : ( $talos_bit_prioridades[ $prioridad ] ?? $prioridad ),
         'prioridad_otro'  => $prioridad_otro,
+        'fecha_solicitud' => $fecha_solicitud,
         'fecha_entrega'   => $fecha_entrega,
-        'dias'            => $dias,
-        'vencida'         => ( null !== $dias && $dias < 0 && 'completada' !== $etapa ),
+        'dias_fuera_sla'  => $dias_fuera_sla,
+        'vencida'         => ( null !== $dias_fuera_sla && $dias_fuera_sla > 0 && 'completada' !== $etapa ),
         'autor_id'        => $autor_id,
         'autor_nombre'    => $autor_id ? get_the_author_meta( 'display_name', $autor_id ) : '—',
         'modificado_mes'  => get_post_modified_time( 'Y-m', false, $id ),
@@ -183,18 +203,22 @@ get_header();
                  data-descripcion="<?php echo esc_attr( $d['descripcion'] ); ?>"
                  data-prioridad="<?php echo esc_attr( $d['prioridad'] ); ?>"
                  data-prioridad-otro="<?php echo esc_attr( $d['prioridad_otro'] ); ?>"
-                 data-fecha="<?php echo esc_attr( $d['fecha_entrega'] ); ?>">
+                 data-fecha-solicitud="<?php echo esc_attr( $d['fecha_solicitud'] ); ?>">
               <div class="req-company"><?php echo esc_html( $d['empresa'] ); ?></div>
               <div class="req-tipo"><?php echo esc_html( $d['tipo_label'] ); ?></div>
               <div class="req-desc"><?php echo esc_html( wp_trim_words( $d['descripcion'], 14, '…' ) ); ?></div>
               <div class="req-badges">
                 <span class="req-badge <?php echo esc_attr( $d['prioridad'] ); ?>"><?php echo esc_html( $d['prioridad_label'] ); ?></span>
                 <?php if ( $d['vencida'] ) : ?>
-                  <span class="req-badge vencida"><svg viewBox="0 0 24 24"><use href="#i-alert-clock"/></svg>Venció hace <?php echo esc_html( abs( $d['dias'] ) ); ?> días</span>
+                  <span class="req-badge vencida"><svg viewBox="0 0 24 24"><use href="#i-alert-clock"/></svg><?php echo esc_html( $d['dias_fuera_sla'] ); ?> día<?php echo 1 === $d['dias_fuera_sla'] ? '' : 's'; ?> fuera de plazo</span>
                 <?php endif; ?>
               </div>
               <div class="req-foot">
-                <span class="req-fecha"><?php echo esc_html( talos_fmt_fecha_corta( $d['fecha_entrega'] ) ); ?></span>
+                <?php if ( 'completada' === $etapa_key && $d['fecha_entrega'] ) : ?>
+                  <span class="req-fecha">Entregada <?php echo esc_html( talos_fmt_fecha_corta( $d['fecha_entrega'] ) ); ?></span>
+                <?php else : ?>
+                  <span class="req-fecha">Pedida <?php echo esc_html( talos_fmt_fecha_corta( $d['fecha_solicitud'] ) ); ?></span>
+                <?php endif; ?>
                 <div class="req-ava" title="<?php echo esc_attr( $d['autor_nombre'] ); ?>"><?php echo esc_html( talos_iniciales( $d['autor_nombre'] ) ); ?></div>
               </div>
               <div class="req-actions">
@@ -256,8 +280,9 @@ get_header();
         </select>
       </div>
       <div class="form-field">
-        <label for="campoBitFecha">Fecha de Entrega</label>
-        <input type="date" id="campoBitFecha">
+        <label for="campoBitFechaSolicitud">Fecha de Solicitud</label>
+        <input type="date" id="campoBitFechaSolicitud" max="<?php echo esc_attr( current_time( 'Y-m-d' ) ); ?>">
+        <span class="field-hint">Cuándo la pidió el cliente — hoy o antes, no puede ser futura.</span>
       </div>
     </div>
     <div class="form-field" id="wrapBitPrioridadOtro" hidden>
@@ -297,7 +322,8 @@ try{
   var campoBitPrioridad = document.getElementById('campoBitPrioridad');
   var campoBitPrioridadOtro = document.getElementById('campoBitPrioridadOtro');
   var wrapBitPrioridadOtro = document.getElementById('wrapBitPrioridadOtro');
-  var campoBitFecha = document.getElementById('campoBitFecha');
+  var campoBitFechaSolicitud = document.getElementById('campoBitFechaSolicitud');
+  var talosHoyYmd = '<?php echo esc_js( current_time( 'Y-m-d' ) ); ?>';
 
   function actualizarCamposOtro(){
     wrapBitTipoOtro.hidden = (campoBitTipo.value !== 'otro');
@@ -315,7 +341,7 @@ try{
     campoBitDescripcion.value = '';
     campoBitPrioridad.value = 'media';
     campoBitPrioridadOtro.value = '';
-    campoBitFecha.value = '';
+    campoBitFechaSolicitud.value = talosHoyYmd;
     actualizarCamposOtro();
     modalBit.classList.add('show');
   }
@@ -329,7 +355,7 @@ try{
     campoBitDescripcion.value = card.getAttribute('data-descripcion');
     campoBitPrioridad.value = card.getAttribute('data-prioridad');
     campoBitPrioridadOtro.value = card.getAttribute('data-prioridad-otro');
-    campoBitFecha.value = card.getAttribute('data-fecha');
+    campoBitFechaSolicitud.value = card.getAttribute('data-fecha-solicitud');
     actualizarCamposOtro();
     modalBit.classList.add('show');
   }
@@ -345,9 +371,13 @@ try{
   document.getElementById('btnConfirmarPeticion').addEventListener('click', function(){
     var empresaId = campoBitEmpresa.value;
     var descripcion = campoBitDescripcion.value.trim();
-    var fecha = campoBitFecha.value;
+    var fecha = campoBitFechaSolicitud.value;
     if (!empresaId || !descripcion || !fecha){
-      mostrarToastBit('Selecciona la empresa, describe la solicitud y captura la fecha de entrega');
+      mostrarToastBit('Selecciona la empresa, describe la solicitud y captura la fecha de solicitud');
+      return;
+    }
+    if (fecha > talosHoyYmd){
+      mostrarToastBit('La fecha de solicitud no puede ser futura');
       return;
     }
     var btn = this;
@@ -362,7 +392,7 @@ try{
     form.append('descripcion', descripcion);
     form.append('prioridad', campoBitPrioridad.value);
     form.append('prioridad_otro', campoBitPrioridadOtro.value);
-    form.append('fecha_entrega', fecha);
+    form.append('fecha_solicitud', fecha);
     fetch(talosAjaxUrlBit, { method: 'POST', body: form, credentials: 'same-origin' }).then(function(r){ return r.json(); }).then(function(res){
       if (!res.success){
         mostrarToastBit(res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo guardar la petición.');
