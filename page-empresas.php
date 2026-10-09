@@ -4,7 +4,13 @@
  * ?ficha=ID muestra la ficha completa (Ver/Editar) en vez del listado.
  * company_socials (redes sociales) se queda fuera de la ficha por ahora —
  * sigue editándose desde wp-admin, es un repeater y no justifica el esfuerzo
- * de un editor en línea todavía.
+ * de un editor en línea todavía. company_services (servicios contratados,
+ * también repeater) sí se muestra, pero SOLO LECTURA — Jorge notó que no
+ * aparecía en absoluto, nunca se había construido esa sección. Precio se
+ * oculta para quien no es Director (manage_options): el rol Consulta debe
+ * ver QUÉ está contratado, no CUÁNTO se cobra — pedido explícito de Jorge
+ * desde que se diseñó el control de acceso, aplicado aquí desde el día 1
+ * en vez de retrofit después.
  *
  * company_state/company_class/company_status/etc. se guardan como slug
  * (return_format "value" en ACF), por eso necesitan mapas de etiquetas.
@@ -58,6 +64,12 @@ $talos_cfdi_labels = array(
 $talos_pais_labels = array(
     'mexico'=>'México','estados_unidos'=>'Estados Unidos','espana'=>'España','argentina'=>'Argentina','colombia'=>'Colombia',
     'chile'=>'Chile','peru'=>'Perú','ecuador'=>'Ecuador','guatemala'=>'Guatemala','costa_rica'=>'Costa Rica','canada'=>'Canadá','otro'=>'Otro',
+);
+// Mismas choices que service_ref_frequency en Servicios — aquí describe la
+// frecuencia con la que se factura cada fila de company_services.
+$talos_frecuencia_labels_empresa = array(
+    'pago_unico'=>'Pago Único','por_hora'=>'Por Hora','semanal'=>'Semanal','quincenal'=>'Quincenal',
+    'mensual'=>'Mensual','trimestral'=>'Trimestral','semestral'=>'Semestral','anual'=>'Anual',
 );
 
 function talos_empresas_dominio( $url ) {
@@ -165,6 +177,26 @@ if ( $talos_ficha_id ) {
         'post_type' => 'talos_income', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids',
         'meta_query' => array( array( 'key' => 'income_company', 'value' => $talos_ficha_id ) ),
     ) ) );
+
+    // Servicios contratados (company_services, repeater) — solo lectura por
+    // ahora, editar sigue siendo desde wp-admin (igual que company_socials).
+    // Precio/costo solo se muestran a Director (manage_options) — el rol
+    // Consulta debe ver QUÉ está contratado, no CUÁNTO se cobra.
+    $talos_ficha_servicios = array();
+    $talos_filas_servicios = get_field( 'company_services', $talos_ficha_id );
+    if ( is_array( $talos_filas_servicios ) ) {
+        foreach ( $talos_filas_servicios as $fila ) {
+            $item = $fila['service_item'] ?? null;
+            $talos_ficha_servicios[] = array(
+                'nombre'      => ( $item instanceof WP_Post ) ? $item->post_title : ( $fila['service_invoice_description'] ?? 'Servicio' ),
+                'frecuencia'  => $fila['service_frequency'] ?? '',
+                'precio'      => (float) ( $fila['service_price'] ?? 0 ),
+                'estatus'     => ! empty( $fila['service_status'] ),
+                'inicio'      => $fila['service_start_date'] ?? '',
+                'fin'         => $fila['service_end_date'] ?? '',
+            );
+        }
+    }
 }
 
 get_header();
@@ -340,6 +372,41 @@ get_header();
       </div>
     </div>
     <p class="field-hint" style="margin-top:16px;">Los perfiles de redes sociales todavía se editan desde wp-admin.</p>
+  </div>
+
+  <div class="ficha-card">
+    <div class="ficha-section-label">Servicios Contratados</div>
+    <?php if ( empty( $talos_ficha_servicios ) ) : ?>
+      <p class="field-hint">Sin servicios contratados registrados.</p>
+    <?php else : ?>
+      <div class="table-card" style="box-shadow:none;">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Servicio</th>
+                <th>Frecuencia</th>
+                <th>Vigencia</th>
+                <?php if ( current_user_can( 'manage_options' ) ) : ?><th class="num">Precio</th><?php endif; ?>
+                <th>Estatus</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php foreach ( $talos_ficha_servicios as $s ) : ?>
+                <tr>
+                  <td><?php echo esc_html( $s['nombre'] ); ?></td>
+                  <td><?php echo esc_html( $talos_frecuencia_labels_empresa[ $s['frecuencia'] ] ?? ( $s['frecuencia'] ?: '—' ) ); ?></td>
+                  <td><?php echo esc_html( ( $s['inicio'] ?: '—' ) . ( $s['fin'] ? ' – ' . $s['fin'] : '' ) ); ?></td>
+                  <?php if ( current_user_can( 'manage_options' ) ) : ?><td class="num tabular"><?php echo esc_html( talos_fmt_mxn( $s['precio'] ) ); ?></td><?php endif; ?>
+                  <td><span class="pill status-<?php echo $s['estatus'] ? 'active' : 'inactive'; ?>"><span class="pill-dot"></span><?php echo $s['estatus'] ? 'Activo' : 'Inactivo'; ?></span></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <?php endif; ?>
+    <p class="field-hint" style="margin-top:16px;">Solo lectura — agregar o quitar servicios contratados sigue siendo desde wp-admin.</p>
   </div>
 
   <div class="ficha-modo-vista" style="display:flex;justify-content:flex-end;margin-top:4px;">
