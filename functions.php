@@ -10,6 +10,7 @@ require_once get_template_directory() . '/includes/ajax-oportunidades.php';
 require_once get_template_directory() . '/includes/ajax-empresas.php';
 require_once get_template_directory() . '/includes/ajax-contactos.php';
 require_once get_template_directory() . '/includes/ajax-bitacora.php';
+require_once get_template_directory() . '/includes/ajax-servicios.php';
 
 function talos_enqueue_assets() {
     $uri = get_template_directory_uri();
