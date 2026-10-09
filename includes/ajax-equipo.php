@@ -1,13 +1,10 @@
 <?php
 /**
  * AJAX de Equipo: creación rápida, guardado de la ficha completa y eliminar.
- * Mismo patrón que ajax-empresas.php / ajax-contactos.php, con un detalle
- * propio: "Datos Bancarios" (team_bank_details) sigue siendo un campo ACF
- * tipo Group (Jorge aplanó el resto del field group de Group a Tab, pero
- * este sub-grupo se quedó anidado) — este CPT ya tuvo un bug real de guardado
- * en campos Group (ver feedback_talos_platform_quirks), así que se guarda
- * como UN SOLO update_field() con el arreglo completo, nunca sub-campo por
- * sub-campo, que es la forma correcta/documentada de escribir un Group.
+ * Mismo patrón que ajax-empresas.php / ajax-contactos.php. Todo el field
+ * group "Perfil de Equipo" está en Tab (Jorge aplanó también Datos
+ * Bancarios, que originalmente quedó como Group anidado) — campos planos
+ * normales, sin ningún truco especial de guardado.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -66,7 +63,7 @@ function talos_ajax_guardar_miembro() {
         wp_update_post( array( 'ID' => $id, 'post_title' => $nombre ) );
     }
 
-    $campos_texto = array( 'team_id_card', 'team_id_curp', 'team_phone' );
+    $campos_texto = array( 'team_id_card', 'team_id_curp', 'team_phone', 'bank_name', 'bank_account', 'bank_clabe', 'bank_card_number' );
     foreach ( $campos_texto as $campo ) {
         if ( isset( $_POST[ $campo ] ) ) {
             update_field( $campo, sanitize_text_field( wp_unslash( $_POST[ $campo ] ) ), $id );
@@ -102,17 +99,6 @@ function talos_ajax_guardar_miembro() {
             $valor = sanitize_text_field( wp_unslash( $_POST[ $campo_fecha ] ) );
             update_field( $campo_fecha, $valor ? str_replace( '-', '', $valor ) : '', $id );
         }
-    }
-
-    // Datos Bancarios: UN SOLO update_field() con el arreglo completo del Group
-    // — ver nota al inicio del archivo sobre por qué nunca sub-campo por sub-campo.
-    if ( isset( $_POST['bank_name'] ) || isset( $_POST['bank_account'] ) || isset( $_POST['bank_clabe'] ) || isset( $_POST['bank_card_number'] ) ) {
-        update_field( 'team_bank_details', array(
-            'bank_name'        => sanitize_text_field( wp_unslash( $_POST['bank_name'] ?? '' ) ),
-            'bank_account'     => sanitize_text_field( wp_unslash( $_POST['bank_account'] ?? '' ) ),
-            'bank_clabe'       => sanitize_text_field( wp_unslash( $_POST['bank_clabe'] ?? '' ) ),
-            'bank_card_number' => sanitize_text_field( wp_unslash( $_POST['bank_card_number'] ?? '' ) ),
-        ), $id );
     }
 
     wp_send_json_success();

@@ -9,15 +9,13 @@
  * de solo lectura en la ficha, para cambiar el sueldo se agrega una fila
  * nueva en ese repeater desde wp-admin.
  *
- * ?ficha=ID muestra la ficha completa (4 secciones: Datos Generales, Datos
- * de Contacto, Finanzas y Nómina, Salida) — mismo patrón de Empresas/
- * Contactos/Servicios. "Datos Bancarios" (team_bank_details) sigue siendo un
- * campo ACF tipo Group anidado dentro de la sección de Finanzas (Jorge
- * aplanó el resto del field group de Group a Tab, pero este sub-grupo se
- * quedó anidado) — este CPT ya tuvo un bug real de guardado en campos Group
- * (ver feedback_talos_platform_quirks), así que ajax-equipo.php lo guarda
- * como un solo update_field() con el arreglo completo, nunca sub-campo por
- * sub-campo.
+ * ?ficha=ID muestra la ficha completa (5 secciones: Datos Generales, Datos
+ * de Contacto, Finanzas y Nómina, Datos Bancarios, Salida) — mismo patrón
+ * de Empresas/Contactos/Servicios. Jorge aplanó TODO el field group de
+ * Group a Tab (incluido el Datos Bancarios que originalmente quedó
+ * anidado como Group — ver commit anterior) — bank_name/bank_account/
+ * bank_clabe/bank_card_number son campos planos normales, sin truco
+ * especial de guardado.
  */
 
 $talos_equipo_rol_labels = array(
@@ -81,7 +79,6 @@ foreach ( $talos_equipo_ids as $id ) {
 }
 
 if ( $talos_ficha_id ) {
-    $banco = get_field( 'team_bank_details', $talos_ficha_id );
     $f = array(
         'nombre'              => get_the_title( $talos_ficha_id ),
         'team_status'         => get_field( 'team_status', $talos_ficha_id ),
@@ -98,10 +95,10 @@ if ( $talos_ficha_id ) {
         'team_start_date'     => get_field( 'team_start_date', $talos_ficha_id ),
         'team_end_date'       => get_field( 'team_end_date', $talos_ficha_id ),
         'team_exit_terms'     => get_field( 'team_exit_terms', $talos_ficha_id ),
-        'bank_name'           => $banco['bank_name'] ?? '',
-        'bank_account'        => $banco['bank_account'] ?? '',
-        'bank_clabe'          => $banco['bank_clabe'] ?? '',
-        'bank_card_number'    => $banco['bank_card_number'] ?? '',
+        'bank_name'           => get_field( 'bank_name', $talos_ficha_id ),
+        'bank_account'        => get_field( 'bank_account', $talos_ficha_id ),
+        'bank_clabe'          => get_field( 'bank_clabe', $talos_ficha_id ),
+        'bank_card_number'    => get_field( 'bank_card_number', $talos_ficha_id ),
         'sueldo_actual'       => talos_equipo_sueldo_actual( $talos_ficha_id ),
     );
 
@@ -239,6 +236,12 @@ get_header();
         <div class="view-value"><?php echo esc_html( $f['sueldo_actual'] > 0 ? talos_fmt_mxn( $f['sueldo_actual'] ) : '—' ); ?></div>
         <div class="view-value">Se agrega una fila nueva en el repeater "Historial de Sueldos" desde wp-admin — no editable aquí.</div>
       </div>
+    </div>
+  </div>
+
+  <div class="ficha-card">
+    <div class="ficha-section-label">Datos Bancarios</div>
+    <div class="data-grid">
       <div class="data-field">
         <label>Banco</label>
         <div class="view-value"><?php echo esc_html( $f['bank_name'] ?: '—' ); ?></div>
