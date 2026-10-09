@@ -103,3 +103,25 @@ function talos_ajax_guardar_empresa() {
     wp_send_json_success();
 }
 add_action( 'wp_ajax_talos_guardar_empresa', 'talos_ajax_guardar_empresa' );
+
+/**
+ * Elimina (mueve a la papelera de WordPress, NO borrado permanente) una
+ * Empresa — mismo criterio que Ingresos/Gastos: recuperable desde wp-admin.
+ * El front ya avisó antes de confirmar si tenía Contactos/Oportunidades/
+ * Ingresos relacionados; aquí no se bloquea nada, Jorge decide.
+ */
+function talos_ajax_eliminar_empresa() {
+    talos_emp_verificar_nonce();
+
+    $id = isset( $_POST['empresa_id'] ) ? (int) $_POST['empresa_id'] : 0;
+    if ( ! $id || 'talos_company' !== get_post_type( $id ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Empresa no válida.' ) );
+    }
+
+    if ( ! wp_trash_post( $id ) ) {
+        wp_send_json_error( array( 'mensaje' => 'No se pudo eliminar la empresa.' ) );
+    }
+
+    wp_send_json_success();
+}
+add_action( 'wp_ajax_talos_eliminar_empresa', 'talos_ajax_eliminar_empresa' );

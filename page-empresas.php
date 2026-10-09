@@ -151,6 +151,20 @@ if ( $talos_ficha_id ) {
         'company_phone'   => get_field( 'company_phone', $talos_ficha_id ),
         'company_whatsapp'=> get_field( 'company_whatsapp', $talos_ficha_id ),
     );
+
+    // Conteo de dependientes, solo para avisar antes de eliminar — no bloquea nada.
+    $talos_ficha_contactos_n = count( get_posts( array(
+        'post_type' => 'talos_contact', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids',
+        'meta_query' => array( array( 'key' => 'contact_company', 'value' => $talos_ficha_id ) ),
+    ) ) );
+    $talos_ficha_oportunidades_n = count( get_posts( array(
+        'post_type' => 'talos_opportunity', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids',
+        'meta_query' => array( array( 'key' => 'opportunity_company', 'value' => $talos_ficha_id ) ),
+    ) ) );
+    $talos_ficha_ingresos_n = count( get_posts( array(
+        'post_type' => 'talos_income', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids',
+        'meta_query' => array( array( 'key' => 'income_company', 'value' => $talos_ficha_id ) ),
+    ) ) );
 }
 
 get_header();
@@ -326,6 +340,31 @@ get_header();
       </div>
     </div>
     <p class="field-hint" style="margin-top:16px;">Los perfiles de redes sociales todavía se editan desde wp-admin.</p>
+  </div>
+
+  <div class="ficha-modo-vista" style="display:flex;justify-content:flex-end;margin-top:4px;">
+    <button type="button" class="btn-danger solo-editando" id="btnEliminarEmpresa"><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg>Eliminar Empresa</button>
+  </div>
+
+  <div class="modal-overlay" id="modalEliminarEmpresa">
+    <div class="modal-box">
+      <div class="modal-icon" style="background:var(--danger-soft);color:var(--danger);"><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg></div>
+      <h4>¿Eliminar "<?php echo esc_html( $f['nombre'] ); ?>"?</h4>
+      <p>
+        Se moverá a la papelera de WordPress (recuperable desde wp-admin, no es borrado permanente).
+        <?php if ( $talos_ficha_contactos_n || $talos_ficha_oportunidades_n || $talos_ficha_ingresos_n ) : ?>
+          <br><br>Esta empresa tiene registros relacionados que se quedarán sin empresa asignada:
+          <br>
+          <?php if ( $talos_ficha_contactos_n ) : ?>• <?php echo esc_html( $talos_ficha_contactos_n ); ?> contacto(s)<br><?php endif; ?>
+          <?php if ( $talos_ficha_oportunidades_n ) : ?>• <?php echo esc_html( $talos_ficha_oportunidades_n ); ?> oportunidad(es)<br><?php endif; ?>
+          <?php if ( $talos_ficha_ingresos_n ) : ?>• <?php echo esc_html( $talos_ficha_ingresos_n ); ?> ingreso(s)<br><?php endif; ?>
+        <?php endif; ?>
+      </p>
+      <div class="modal-actions">
+        <button class="btn-ghost" data-close-modal>Cancelar</button>
+        <button class="btn-danger" id="btnConfirmarEliminarEmpresa">Sí, eliminar</button>
+      </div>
+    </div>
   </div>
 
 <?php else : ?>
@@ -511,6 +550,30 @@ try{
         return;
       }
       window.location.href = window.location.pathname + '?ficha=<?php echo (int) $talos_ficha_id; ?>';
+    });
+  });
+
+  // Eliminar (papelera, recuperable desde wp-admin)
+  var modalEliminarEmpresa = document.getElementById('modalEliminarEmpresa');
+  document.getElementById('btnEliminarEmpresa').addEventListener('click', function(){
+    modalEliminarEmpresa.classList.add('show');
+  });
+  modalEliminarEmpresa.querySelectorAll('[data-close-modal]').forEach(function(b){ b.addEventListener('click', function(){ modalEliminarEmpresa.classList.remove('show'); }); });
+  modalEliminarEmpresa.addEventListener('click', function(e){ if (e.target === modalEliminarEmpresa) modalEliminarEmpresa.classList.remove('show'); });
+  document.getElementById('btnConfirmarEliminarEmpresa').addEventListener('click', function(){
+    var btn = this;
+    btn.disabled = true;
+    var form = new FormData();
+    form.append('action', 'talos_eliminar_empresa');
+    form.append('nonce', talosNonceEmp);
+    form.append('empresa_id', '<?php echo (int) $talos_ficha_id; ?>');
+    fetch(talosAjaxUrlEmp, { method: 'POST', body: form, credentials: 'same-origin' }).then(function(r){ return r.json(); }).then(function(res){
+      if (!res.success){
+        mostrarToastEmpresas(res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo eliminar.');
+        btn.disabled = false;
+        return;
+      }
+      window.location.href = window.location.pathname;
     });
   });
 
