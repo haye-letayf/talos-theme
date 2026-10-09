@@ -17,6 +17,7 @@
 $talos_nav = array(
     array( 'slug' => 'dashboard',     'label' => 'Dashboard',      'icon' => 'i-grid',       'group' => 'Principal' ),
     array( 'slug' => 'oportunidades', 'label' => 'Oportunidades',  'icon' => 'i-funnel',     'group' => 'Principal' ),
+    array( 'slug' => 'bitacora',      'label' => 'Bitácora',       'icon' => 'i-clipboard',  'group' => 'Principal' ),
     array( 'slug' => 'empresas',      'label' => 'Empresas',       'icon' => 'i-building',  'group' => 'Relaciones' ),
     array( 'slug' => 'contactos',     'label' => 'Contactos',      'icon' => 'i-users',      'group' => 'Relaciones' ),
     array( 'slug' => 'servicios',     'label' => 'Servicios',      'icon' => 'i-tag',        'group' => 'Relaciones' ),
@@ -82,6 +83,7 @@ if ( $talos_es_seccion_con_mes ) {
     <g id="i-trophy" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 5H5a3 3 0 0 0 3 4M16 5h3a3 3 0 0 1-3 4"/><path d="M12 13v4M9 20h6M10 17h4v3h-4z"/></g>
     <g id="i-x-circle" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></g>
     <g id="i-arrow-right" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></g>
+    <g id="i-clipboard" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1z"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4"/></g>
   </defs>
 </svg>
 

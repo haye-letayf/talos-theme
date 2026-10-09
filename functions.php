@@ -9,6 +9,7 @@ require_once get_template_directory() . '/includes/ajax-gastos.php';
 require_once get_template_directory() . '/includes/ajax-oportunidades.php';
 require_once get_template_directory() . '/includes/ajax-empresas.php';
 require_once get_template_directory() . '/includes/ajax-contactos.php';
+require_once get_template_directory() . '/includes/ajax-bitacora.php';
 
 function talos_enqueue_assets() {
     $uri = get_template_directory_uri();
@@ -82,14 +83,16 @@ function talos_meses_cortos() {
 /**
  * Todos los slugs de página que son pantallas de Talos (vs. páginas normales de WP),
  * y cuáles de esas son visibles para el rol "Consulta" (de solo lectura — Fer/Dany).
- * Sumar 'bitacora' aquí cuando ese módulo exista. header.php usa la misma lista para
- * filtrar el sidebar — mantenerlas en un solo lugar para no desincronizarlas.
+ * Bitácora SÍ es visible para Consulta: es la pantalla donde Fer/Jime registran y
+ * mueven sus propias peticiones sin necesitar acceso de Director (ver ajax-bitacora.php).
+ * header.php usa la misma lista para filtrar el sidebar — mantenerlas en un solo
+ * lugar para no desincronizarlas.
  */
 function talos_secciones_todas() {
-    return array( 'dashboard', 'ingresos', 'gastos', 'empresas', 'contactos', 'servicios', 'equipo', 'oportunidades' );
+    return array( 'dashboard', 'ingresos', 'gastos', 'empresas', 'contactos', 'servicios', 'equipo', 'oportunidades', 'bitacora' );
 }
 function talos_secciones_consulta() {
-    return array( 'empresas', 'contactos' );
+    return array( 'empresas', 'contactos', 'bitacora' );
 }
 
 /**
