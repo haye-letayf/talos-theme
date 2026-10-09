@@ -285,7 +285,9 @@ function talos_ajax_actualizar_campo_income() {
         wp_send_json_error( array( 'mensaje' => 'Ingreso no válido.' ) );
     }
 
-    // income_quantity ya no se usa en ningún CPT/Field Group del sistema — se quitó de la UI y de aquí.
+    // income_quantity se quitó de esta UI y de este editor en línea (2026-10), pero OJO:
+    // motor-recurrencia.php y el importador de AMEX en talos-core todavía la escriben al
+    // crear un Ingreso — no está muerta en todo el sistema, solo aquí. Ver feedback_talos_platform_quirks en memoria.
     $permitidos = array( 'income_service', 'income_doc_type', 'income_unit_price', 'income_description' );
     if ( ! in_array( $campo, $permitidos, true ) ) {
         wp_send_json_error( array( 'mensaje' => 'Campo no permitido.' ) );
@@ -301,14 +303,12 @@ function talos_ajax_actualizar_campo_income() {
         update_field( $campo, (float) $valor, $income_id );
     }
 
-    // Recalcular subtotal/total si cambió algo que los afecta (sin cantidad: subtotal == precio unitario).
-    $precio      = (float) get_field( 'income_unit_price', $income_id );
-    $aplica_iva  = ( 'factura' === get_field( 'income_doc_type', $income_id ) );
-    $subtotal    = $precio;
-    $total       = $aplica_iva ? $subtotal * 1.16 : $subtotal;
-    update_field( 'income_subtotal', $subtotal, $income_id );
-    update_field( 'income_total', $total, $income_id );
-    update_field( 'income_applies_iva', $aplica_iva ? 1 : 0, $income_id );
+    // Recalcular subtotal/total (y default de income_month si estuviera vacío) vía el
+    // mismo hook que corre para cualquier guardado de Ingreso — ver motor-recurrencia.php
+    // en talos-core. update_field() no dispara acf/save_post por sí solo.
+    do_action( 'acf/save_post', $income_id );
+    $subtotal = (float) get_field( 'income_subtotal', $income_id );
+    $total    = (float) get_field( 'income_total', $income_id );
 
     wp_send_json_success( array(
         'subtotal' => talos_fmt_mxn( $subtotal ),

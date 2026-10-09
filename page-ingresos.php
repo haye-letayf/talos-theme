@@ -93,6 +93,7 @@ get_header();
   .cell-input{width:64px;border:1px solid transparent;background:transparent;border-radius:6px;padding:4px 6px;font:inherit;font-size:13px;text-align:right;color:var(--text);}
   .cell-input:hover{border-color:var(--border);}
   .cell-input:focus{outline:none;border-color:var(--accent);background:var(--surface);}
+  .cell-input-money{display:inline-flex;align-items:center;gap:2px;color:var(--text-muted);font-size:13px;}
   select.cell-select{border:1px solid transparent;background:transparent;border-radius:6px;padding:4px 2px;font:inherit;font-size:13px;font-weight:700;color:var(--text);max-width:170px;}
   select.cell-select:hover{border-color:var(--border);}
   select.cell-select:focus{outline:none;border-color:var(--accent);background:var(--surface);}
@@ -205,7 +206,7 @@ get_header();
                 <div class="desc" contenteditable="true" title="Editar descripción"><?php echo esc_html( get_field( 'income_description', $id ) ); ?></div>
               </td>
               <td><button class="doc-toggle <?php echo $es_factura ? 'factura' : 'nota'; ?>" data-role="doc"><?php echo $es_factura ? 'Factura' : 'Nota Venta'; ?></button></td>
-              <td class="num"><input class="cell-input" data-role="monto" type="number" value="<?php echo esc_attr( get_field( 'income_unit_price', $id ) ); ?>" step="100"></td>
+              <td class="num"><span class="cell-input-money"><span>$</span><input class="cell-input" data-role="monto" type="number" value="<?php echo esc_attr( get_field( 'income_unit_price', $id ) ); ?>" step="100"></span></td>
               <td class="num final tabular" data-role="total"><?php echo esc_html( talos_fmt_mxn( get_field( 'income_total', $id ) ) ); ?></td>
               <td><span class="status-dot <?php echo get_field( 'income_sent', $id ) ? 'yes' : 'no'; ?>" data-role="enviado-dot"><svg viewBox="0 0 24 24"><use href="#<?php echo get_field( 'income_sent', $id ) ? 'i-check' : 'i-x'; ?>"/></svg></span></td>
               <td>
