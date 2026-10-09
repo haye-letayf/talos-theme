@@ -71,6 +71,7 @@ foreach ( $talos_bit_ids as $id ) {
         'prioridad_otro'  => $prioridad_otro,
         'fecha_entrega'   => $fecha_entrega,
         'dias'            => $dias,
+        'vencida'         => ( null !== $dias && $dias < 0 && 'completada' !== $etapa ),
         'autor_id'        => $autor_id,
         'autor_nombre'    => $autor_id ? get_the_author_meta( 'display_name', $autor_id ) : '—',
         'modificado_mes'  => get_post_modified_time( 'Y-m', false, $id ),
@@ -80,10 +81,8 @@ foreach ( $talos_bit_ids as $id ) {
 }
 
 $talos_bit_kpi_vencidas = 0;
-foreach ( array( 'pendiente', 'en_proceso' ) as $k ) {
-    foreach ( $talos_bit_por_etapa[ $k ] as $id ) {
-        if ( null !== $talos_bit_datos[ $id ]['dias'] && $talos_bit_datos[ $id ]['dias'] < 0 ) $talos_bit_kpi_vencidas++;
-    }
+foreach ( $talos_bit_datos as $d ) {
+    if ( $d['vencida'] ) $talos_bit_kpi_vencidas++;
 }
 $talos_mes_actual_ymd_bit = current_time( 'Y-m' );
 $talos_bit_kpi_completadas_mes = 0;
@@ -120,6 +119,7 @@ get_header();
   .req-card.c-pendiente{border-top-color:#94a3b8;}
   .req-card.c-en_proceso{border-top-color:var(--accent);}
   .req-card.c-completada{border-top-color:var(--success);}
+  .req-card.is-vencida{border-color:var(--danger);box-shadow:0 0 0 1px var(--danger),0 6px 16px rgba(220,28,46,.22);}
   .req-company{font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;}
   .req-tipo{font-size:13.5px;font-weight:700;line-height:1.3;}
   .req-desc{font-size:12px;color:var(--text-muted);line-height:1.4;}
@@ -175,7 +175,7 @@ get_header();
           <?php foreach ( $ids_etapa as $id ) :
               $d = $talos_bit_datos[ $id ];
               ?>
-            <div class="req-card c-<?php echo esc_attr( $etapa_key ); ?>"
+            <div class="req-card c-<?php echo esc_attr( $etapa_key ); ?><?php echo $d['vencida'] ? ' is-vencida' : ''; ?>"
                  data-id="<?php echo esc_attr( $id ); ?>"
                  data-empresa-id="<?php echo esc_attr( $d['empresa_id'] ); ?>"
                  data-tipo="<?php echo esc_attr( $d['tipo'] ); ?>"
@@ -189,12 +189,12 @@ get_header();
               <div class="req-desc"><?php echo esc_html( wp_trim_words( $d['descripcion'], 14, '…' ) ); ?></div>
               <div class="req-badges">
                 <span class="req-badge <?php echo esc_attr( $d['prioridad'] ); ?>"><?php echo esc_html( $d['prioridad_label'] ); ?></span>
-                <?php if ( 'completada' !== $etapa_key && null !== $d['dias'] && $d['dias'] < 0 ) : ?>
+                <?php if ( $d['vencida'] ) : ?>
                   <span class="req-badge vencida"><svg viewBox="0 0 24 24"><use href="#i-alert-clock"/></svg>Venció hace <?php echo esc_html( abs( $d['dias'] ) ); ?> días</span>
                 <?php endif; ?>
               </div>
               <div class="req-foot">
-                <span class="req-fecha"><?php echo esc_html( $d['fecha_entrega'] ? date_i18n( 'd/m', strtotime( $d['fecha_entrega'] ) ) : '—' ); ?></span>
+                <span class="req-fecha"><?php echo esc_html( talos_fmt_fecha_corta( $d['fecha_entrega'] ) ); ?></span>
                 <div class="req-ava" title="<?php echo esc_attr( $d['autor_nombre'] ); ?>"><?php echo esc_html( talos_iniciales( $d['autor_nombre'] ) ); ?></div>
               </div>
               <div class="req-actions">

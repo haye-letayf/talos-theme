@@ -51,6 +51,21 @@ function talos_fmt_mxn( $numero ) {
 }
 
 /**
+ * Fecha corta en español tipo "Mar 13/oct" (día de la semana + día/mes) —
+ * usada en tarjetas de Kanban (Bitácora) donde no cabe una fecha larga.
+ */
+function talos_dias_cortos() {
+    return array( 1 => 'Lun', 2 => 'Mar', 3 => 'Mié', 4 => 'Jue', 5 => 'Vie', 6 => 'Sáb', 7 => 'Dom' );
+}
+function talos_fmt_fecha_corta( $fecha_ymd ) {
+    $fecha = $fecha_ymd ? DateTime::createFromFormat( 'Y-m-d', $fecha_ymd ) : false;
+    if ( ! $fecha ) return '—';
+    $dia = talos_dias_cortos()[ (int) $fecha->format( 'N' ) ];
+    $mes = talos_meses_cortos()[ (int) $fecha->format( 'n' ) - 1 ];
+    return $dia . ' ' . $fecha->format( 'j' ) . '/' . $mes;
+}
+
+/**
  * Selector de mes universal (Dashboard/Ingresos/Gastos): el mes activo viene del
  * parámetro ?mes=YYYY-MM si está presente, si no de la cookie talos_mes_activo
  * (lo último que se vio), si no del mes real en curso. header.php vuelve a
