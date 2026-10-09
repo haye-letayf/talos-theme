@@ -126,6 +126,18 @@ foreach ( $talos_empresas_matrices as $matriz_id ) {
     }
 }
 
+// Rol Consulta: solo ve las empresas donde es el Account Manager asignado —
+// "Listado de empresas, solo pueden ver las que tienen asignadas" (diseño del
+// Dashboard personalizado, aplica igual aquí en /empresas/).
+if ( ! current_user_can( 'manage_options' ) ) {
+    $talos_mi_id_empresas = talos_mi_team_post_id();
+    $talos_empresas_ids = array_values( array_filter( $talos_empresas_ids, function ( $id ) use ( $talos_mi_id_empresas ) {
+        $am = get_field( 'company_account_manager', $id );
+        $am_id = ( $am instanceof WP_Post ) ? $am->ID : 0;
+        return $am_id && $am_id === $talos_mi_id_empresas;
+    } ) );
+}
+
 $talos_total_empresas = count( $talos_empresas_ids );
 $talos_clientes_activos = 0;
 $talos_leads_oportunidad = 0;
@@ -221,11 +233,13 @@ get_header();
       <h1 class="page-title"><?php echo esc_html( $f['nombre'] ); ?></h1>
       <p class="page-sub">Ficha de Empresa</p>
     </div>
+    <?php if ( current_user_can( 'manage_options' ) ) : ?>
     <div class="head-controls">
       <button type="button" class="btn-primary solo-vista" id="btnEditarFicha"><svg viewBox="0 0 24 24"><use href="#i-edit"/></svg>Editar</button>
       <button type="button" class="btn-ghost solo-editando" id="btnCancelarFicha">Cancelar</button>
       <button type="button" class="btn-confirm solo-editando" id="btnGuardarFicha">Guardar Cambios</button>
     </div>
+    <?php endif; ?>
   </div>
 
   <div class="ficha-card">
@@ -439,9 +453,11 @@ get_header();
 <div class="page-head">
   <div>
     <h1 class="page-title">Empresas</h1>
-    <p class="page-sub">Directorio de clientes, leads y aliados</p>
+    <p class="page-sub"><?php echo current_user_can( 'manage_options' ) ? 'Directorio de clientes, leads y aliados' : 'Tus cuentas asignadas'; ?></p>
   </div>
+  <?php if ( current_user_can( 'manage_options' ) ) : ?>
   <button class="btn-primary" id="btnNuevaEmpresa"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg>Nueva Empresa</button>
+  <?php endif; ?>
 </div>
 
 <div class="count-strip">
@@ -531,7 +547,9 @@ get_header();
               <td><?php echo esc_html( $estado_label ?: '—' ); ?></td>
               <td class="row-actions">
                 <a class="action-btn view" href="<?php echo esc_url( add_query_arg( 'ficha', $id ) ); ?>" title="Ver ficha técnica"><svg viewBox="0 0 24 24"><use href="#i-eye"/></svg></a>
+                <?php if ( current_user_can( 'manage_options' ) ) : ?>
                 <a class="action-btn edit" href="<?php echo esc_url( add_query_arg( array( 'ficha' => $id, 'editar' => 1 ) ) ); ?>" title="Editar empresa"><svg viewBox="0 0 24 24"><use href="#i-edit"/></svg></a>
+                <?php endif; ?>
               </td>
             </tr>
         <?php endforeach; ?>
@@ -540,6 +558,7 @@ get_header();
   </div>
 </div>
 
+<?php if ( current_user_can( 'manage_options' ) ) : ?>
 <div class="modal-overlay" id="modalNuevaEmpresa">
   <div class="modal-box">
     <h4>Nueva Empresa</h4>
@@ -572,6 +591,7 @@ get_header();
     </div>
   </div>
 </div>
+<?php endif; ?>
 
 <?php endif; ?>
 
@@ -592,8 +612,9 @@ try{
 
   <?php if ( $talos_ficha_id ) : ?>
   // ===== Ficha: alternar vista/edición + guardar =====
-  <?php if ( $talos_ficha_editando ) : ?>document.body.classList.add('editando');<?php endif; ?>
+  <?php if ( $talos_ficha_editando && current_user_can( 'manage_options' ) ) : ?>document.body.classList.add('editando');<?php endif; ?>
 
+  <?php if ( current_user_can( 'manage_options' ) ) : ?>
   document.getElementById('btnEditarFicha').addEventListener('click', function(){
     document.body.classList.add('editando');
   });
@@ -619,8 +640,10 @@ try{
       window.location.href = window.location.pathname + '?ficha=<?php echo (int) $talos_ficha_id; ?>';
     });
   });
+  <?php endif; ?>
 
-  // Eliminar (papelera, recuperable desde wp-admin)
+  // Eliminar (papelera, recuperable desde wp-admin) — el botón sigue oculto por
+  // CSS para Consulta (nunca entra a editando), este listener no causa nada.
   var modalEliminarEmpresa = document.getElementById('modalEliminarEmpresa');
   document.getElementById('btnEliminarEmpresa').addEventListener('click', function(){
     modalEliminarEmpresa.classList.add('show');
@@ -685,6 +708,7 @@ try{
     });
   });
 
+  <?php if ( current_user_can( 'manage_options' ) ) : ?>
   var modalNuevaEmpresa = document.getElementById('modalNuevaEmpresa');
   document.getElementById('btnNuevaEmpresa').addEventListener('click', function(){
     document.getElementById('campoNombreEmpresa').value = '';
@@ -713,6 +737,7 @@ try{
       window.location.href = window.location.pathname + '?ficha=' + res.data.id + '&editar=1';
     });
   });
+  <?php endif; ?>
   <?php endif; ?>
 }catch(e){ console.error(e); }
 </script>

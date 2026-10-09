@@ -119,7 +119,7 @@ button{font-family:inherit;}
 .metric-box .label,.count-box .label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-weight:700;display:block;margin-bottom:5px;}
 .metric-box .value,.count-box .value{font-size:18px;font-weight:800;color:var(--text);}
 .metric-box.stripe-success,.count-box.success{border-left-color:var(--success);}
-.metric-box.stripe-danger{border-left-color:var(--danger);}
+.metric-box.stripe-danger,.count-box.danger{border-left-color:var(--danger);}
 .metric-box.stripe-accent,.count-box.accent{border-left-color:var(--accent);}
 .metric-box.stripe-gold,.count-box.gold{border-left-color:var(--gold);}
 .metric-box.hero{background:var(--accent);border-color:var(--accent);}

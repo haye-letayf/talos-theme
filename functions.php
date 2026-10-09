@@ -100,16 +100,37 @@ function talos_meses_cortos() {
 /**
  * Todos los slugs de página que son pantallas de Talos (vs. páginas normales de WP),
  * y cuáles de esas son visibles para el rol "Consulta" (de solo lectura — Fer/Dany).
- * Bitácora SÍ es visible para Consulta: es la pantalla donde Fer/Jime registran y
- * mueven sus propias peticiones sin necesitar acceso de Director (ver ajax-bitacora.php).
- * header.php usa la misma lista para filtrar el sidebar — mantenerlas en un solo
- * lugar para no desincronizarlas.
+ * Diseño 2026-10-09: Consulta ya NO tiene página aparte de Contactos ni de Bitácora —
+ * ambas quedaron reemplazadas por su propio Dashboard personalizado (ver
+ * page-dashboard.php), que SÍ necesita estar en esta lista para que no las
+ * rebote talos_restringir_acceso(). header.php usa la misma lista para filtrar
+ * el sidebar — mantenerlas en un solo lugar para no desincronizarlas.
  */
 function talos_secciones_todas() {
     return array( 'dashboard', 'ingresos', 'gastos', 'empresas', 'contactos', 'servicios', 'equipo', 'oportunidades', 'bitacora' );
 }
 function talos_secciones_consulta() {
-    return array( 'empresas', 'contactos', 'bitacora' );
+    return array( 'dashboard', 'empresas' );
+}
+
+/**
+ * ID del post de talos_team vinculado al usuario de WordPress con sesión
+ * (campo ACF "team_wp_user_id", tipo User) — 0 si no hay ninguno vinculado
+ * (p. ej. el usuario de un Director, o un miembro de equipo recién creado
+ * al que todavía no se le asigna su usuario). Usado para el Dashboard
+ * personalizado de Consulta y para la Cartera por Asesor.
+ */
+function talos_mi_team_post_id() {
+    $uid = get_current_user_id();
+    if ( ! $uid ) return 0;
+    $ids = get_posts( array(
+        'post_type'      => 'talos_team',
+        'post_status'    => 'publish',
+        'posts_per_page' => 1,
+        'fields'         => 'ids',
+        'meta_query'     => array( array( 'key' => 'team_wp_user_id', 'value' => $uid ) ),
+    ) );
+    return $ids ? (int) $ids[0] : 0;
 }
 
 /**

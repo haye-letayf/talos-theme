@@ -123,3 +123,43 @@ function talos_ajax_eliminar_miembro() {
     wp_send_json_success();
 }
 add_action( 'wp_ajax_talos_eliminar_miembro', 'talos_ajax_eliminar_miembro' );
+
+/**
+ * Autoedición de perfil (Dashboard de Consulta): cualquier usuario con
+ * sesión puede editar SU PROPIO registro de Equipo (resuelto vía
+ * talos_mi_team_post_id(), campo team_wp_user_id) — pero solo la lista
+ * acotada de campos no-sensibles ($campos_permitidos). Estatus/Puesto/
+ * fechas/CURP/datos bancarios/sueldo siguen siendo exclusivos de
+ * talos_ajax_guardar_miembro() (manage_options).
+ */
+function talos_ajax_guardar_mi_perfil() {
+    if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'talos_mi_perfil' ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Sesión inválida, recarga la página.' ), 403 );
+    }
+    if ( ! is_user_logged_in() ) {
+        wp_send_json_error( array( 'mensaje' => 'Debes iniciar sesión.' ), 403 );
+    }
+
+    $id = talos_mi_team_post_id();
+    if ( ! $id ) {
+        wp_send_json_error( array( 'mensaje' => 'Tu usuario no está vinculado a un perfil de Equipo — pide a un Director que lo vincule.' ) );
+    }
+
+    if ( isset( $_POST['team_phone'] ) ) {
+        update_field( 'team_phone', sanitize_text_field( wp_unslash( $_POST['team_phone'] ) ), $id );
+    }
+    if ( isset( $_POST['team_email_personal'] ) ) {
+        update_field( 'team_email_personal', sanitize_email( wp_unslash( $_POST['team_email_personal'] ) ), $id );
+    }
+    foreach ( array( 'team_social_fb', 'team_social_ig' ) as $campo_url ) {
+        if ( isset( $_POST[ $campo_url ] ) ) {
+            update_field( $campo_url, sanitize_url( wp_unslash( $_POST[ $campo_url ] ) ), $id );
+        }
+    }
+    if ( isset( $_POST['team_address'] ) ) {
+        update_field( 'team_address', sanitize_textarea_field( wp_unslash( $_POST['team_address'] ) ), $id );
+    }
+
+    wp_send_json_success();
+}
+add_action( 'wp_ajax_talos_guardar_mi_perfil', 'talos_ajax_guardar_mi_perfil' );

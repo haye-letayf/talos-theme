@@ -40,7 +40,10 @@ talos_guardar_mes_activo( $talos_mes_activo );
 $talos_mes_activo_str = $talos_mes_activo->format( 'Y-m' );
 $talos_mes_activo_label = talos_meses_es()[ (int) $talos_mes_activo->format( 'n' ) ] . ' ' . $talos_mes_activo->format( 'Y' );
 
-$talos_es_seccion_con_mes = in_array( $talos_current_slug, $talos_secciones_con_mes, true );
+// El Dashboard de Consulta (Fer/Dany) no usa el mes — es un resumen personal
+// (perfil/cuentas/peticiones), no datos financieros por periodo.
+$talos_es_seccion_con_mes = in_array( $talos_current_slug, $talos_secciones_con_mes, true )
+    && ( 'dashboard' !== $talos_current_slug || current_user_can( 'manage_options' ) );
 if ( $talos_es_seccion_con_mes ) {
     $talos_url_pagina_actual = home_url( '/' . $talos_current_slug . '/' );
     $talos_topbar_mes_prev = add_query_arg( 'mes', ( clone $talos_mes_activo )->modify( '-1 month' )->format( 'Y-m' ), $talos_url_pagina_actual );

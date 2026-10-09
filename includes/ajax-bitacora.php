@@ -44,6 +44,50 @@ function talos_bit_sla_dias() {
 }
 
 /**
+ * Conteo de Pendientes/En Proceso/Vencidas para un autor (post_author) en
+ * particular, o para todos si se omite — reutilizado por el Dashboard
+ * personalizado de Consulta (solo sus propias peticiones) y por la Cartera
+ * por Asesor del Dashboard de Director (una llamada por cada miembro de
+ * equipo). "Vencida" usa el mismo cálculo que el Kanban de Bitácora
+ * (días transcurridos desde Fecha de Solicitud contra el margen de la
+ * Prioridad) para no duplicar la lógica en dos lugares.
+ */
+function talos_bitacora_resumen_por_autor( $autor_id = 0 ) {
+    $args = array(
+        'post_type'      => 'talos_request',
+        'post_status'    => 'publish',
+        'posts_per_page' => -1,
+        'fields'         => 'ids',
+    );
+    if ( $autor_id ) {
+        $args['author'] = $autor_id;
+    }
+    $ids = get_posts( $args );
+
+    $sla = talos_bit_sla_dias();
+    $hoy = new DateTime( 'today' );
+    $resumen = array( 'pendientes' => 0, 'en_proceso' => 0, 'vencidas' => 0, 'total' => count( $ids ) );
+
+    foreach ( $ids as $id ) {
+        $estatus = get_field( 'request_status', $id );
+        if ( 'pendiente' === $estatus ) $resumen['pendientes']++;
+        elseif ( 'en_proceso' === $estatus ) $resumen['en_proceso']++;
+
+        if ( 'completada' === $estatus ) continue;
+        $fecha_solicitud = get_field( 'request_date', $id );
+        if ( ! $fecha_solicitud ) continue;
+        $sol = DateTime::createFromFormat( 'Y-m-d', $fecha_solicitud );
+        if ( ! $sol ) continue;
+        $prioridad = get_field( 'request_priority', $id );
+        if ( ! isset( $sla[ $prioridad ] ) ) continue;
+        $dias_transcurridos = (int) $sol->diff( $hoy )->format( '%a' );
+        if ( ( $dias_transcurridos - $sla[ $prioridad ] ) > 0 ) $resumen['vencidas']++;
+    }
+
+    return $resumen;
+}
+
+/**
  * Valida que una fecha venga en Y-m-d y no sea futura (hoy sí se permite) —
  * usado para Fecha de Solicitud: se registra cuándo pidió el cliente, nunca
  * una fecha que todavía no ha llegado.
