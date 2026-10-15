@@ -203,12 +203,12 @@ if ( $talos_es_director ) {
 
         // Una fila por servicio contratado (no por empresa) — sin precio/costo,
         // el rol Consulta ve QUÉ está contratado, no CUÁNTO se cobra.
-        // talos_company_service: antes repeater company_services, migrado a
+        // talos_contract: antes repeater company_services, migrado a
         // CPT propio ligado via service_company.
         $talos_mis_servicios = array();
         if ( $talos_mis_empresas_ids ) {
             $talos_mis_posts_servicios = get_posts( array(
-                'post_type' => 'talos_company_service', 'post_status' => 'publish', 'posts_per_page' => -1,
+                'post_type' => 'talos_contract', 'post_status' => 'publish', 'posts_per_page' => -1,
                 'meta_query' => array(
                     array( 'key' => 'service_company', 'value' => $talos_mis_empresas_ids, 'compare' => 'IN' ),
                     array( 'key' => 'service_status', 'value' => '1' ),

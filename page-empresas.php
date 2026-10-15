@@ -4,7 +4,7 @@
  * ?ficha=ID muestra la ficha completa (Ver/Editar) en vez del listado.
  * company_socials (redes sociales) se queda fuera de la ficha por ahora —
  * sigue editándose desde wp-admin, es un repeater y no justifica el esfuerzo
- * de un editor en línea todavía. Servicios contratados (talos_company_service,
+ * de un editor en línea todavía. Servicios contratados (talos_contract,
  * antes un repeater, migrado a CPT propio) sí se muestra, pero SOLO LECTURA —
  * Jorge notó que no aparecía en absoluto, nunca se había construido esa
  * sección. Precio se
@@ -191,14 +191,14 @@ if ( $talos_ficha_id ) {
         'meta_query' => array( array( 'key' => 'income_company', 'value' => $talos_ficha_id ) ),
     ) ) );
 
-    // Servicios contratados (talos_company_service, antes repeater, migrado
+    // Servicios contratados (talos_contract, antes repeater, migrado
     // a CPT propio) — solo lectura por ahora, editar sigue siendo desde
     // wp-admin (igual que company_socials). Precio/costo solo se muestran a
     // Director (manage_options) — el rol Consulta debe ver QUÉ está
     // contratado, no CUÁNTO se cobra.
     $talos_ficha_servicios = array();
     $talos_posts_servicios = get_posts( array(
-        'post_type' => 'talos_company_service', 'post_status' => 'publish', 'posts_per_page' => -1,
+        'post_type' => 'talos_contract', 'post_status' => 'publish', 'posts_per_page' => -1,
         'meta_query' => array( array( 'key' => 'service_company', 'value' => $talos_ficha_id ) ),
     ) );
     foreach ( $talos_posts_servicios as $talos_servicio_post ) {

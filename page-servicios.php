@@ -57,11 +57,11 @@ if ( $talos_ficha_id ) {
         'service_ref_price_usd' => get_field( 'service_ref_price_usd', $talos_ficha_id ),
     );
 
-    // talos_company_service (antes repeater company_services dentro de cada
+    // talos_contract (antes repeater company_services dentro de cada
     // Empresa) ya tiene su propio post con service_item post_object -- se
     // cuenta directo por meta_query, sin recorrer todas las Empresas a mano.
     $talos_servicios_contratados_ids = get_posts( array(
-        'post_type' => 'talos_company_service', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids',
+        'post_type' => 'talos_contract', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids',
         'meta_query' => array( array( 'key' => 'service_item', 'value' => $talos_ficha_id ) ),
     ) );
     $talos_empresas_con_este_servicio = array();

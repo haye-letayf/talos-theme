@@ -78,7 +78,7 @@ add_action( 'wp_ajax_talos_guardar_servicio', 'talos_ajax_guardar_servicio' );
 
 /**
  * Elimina (papelera, recuperable desde wp-admin) un Servicio del catálogo.
- * El front ya avisó si está contratado (talos_company_service) en alguna
+ * El front ya avisó si está contratado (talos_contract) en alguna
  * Empresa; aquí no se bloquea nada, Jorge decide.
  */
 function talos_ajax_eliminar_servicio() {
