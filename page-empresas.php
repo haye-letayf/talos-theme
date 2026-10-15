@@ -4,9 +4,10 @@
  * ?ficha=ID muestra la ficha completa (Ver/Editar) en vez del listado.
  * company_socials (redes sociales) se queda fuera de la ficha por ahora —
  * sigue editándose desde wp-admin, es un repeater y no justifica el esfuerzo
- * de un editor en línea todavía. company_services (servicios contratados,
- * también repeater) sí se muestra, pero SOLO LECTURA — Jorge notó que no
- * aparecía en absoluto, nunca se había construido esa sección. Precio se
+ * de un editor en línea todavía. Servicios contratados (talos_company_service,
+ * antes un repeater, migrado a CPT propio) sí se muestra, pero SOLO LECTURA —
+ * Jorge notó que no aparecía en absoluto, nunca se había construido esa
+ * sección. Precio se
  * oculta para quien no es Director (manage_options): el rol Consulta debe
  * ver QUÉ está contratado, no CUÁNTO se cobra — pedido explícito de Jorge
  * desde que se diseñó el control de acceso, aplicado aquí desde el día 1
@@ -190,24 +191,26 @@ if ( $talos_ficha_id ) {
         'meta_query' => array( array( 'key' => 'income_company', 'value' => $talos_ficha_id ) ),
     ) ) );
 
-    // Servicios contratados (company_services, repeater) — solo lectura por
-    // ahora, editar sigue siendo desde wp-admin (igual que company_socials).
-    // Precio/costo solo se muestran a Director (manage_options) — el rol
-    // Consulta debe ver QUÉ está contratado, no CUÁNTO se cobra.
+    // Servicios contratados (talos_company_service, antes repeater, migrado
+    // a CPT propio) — solo lectura por ahora, editar sigue siendo desde
+    // wp-admin (igual que company_socials). Precio/costo solo se muestran a
+    // Director (manage_options) — el rol Consulta debe ver QUÉ está
+    // contratado, no CUÁNTO se cobra.
     $talos_ficha_servicios = array();
-    $talos_filas_servicios = get_field( 'company_services', $talos_ficha_id );
-    if ( is_array( $talos_filas_servicios ) ) {
-        foreach ( $talos_filas_servicios as $fila ) {
-            $item = $fila['service_item'] ?? null;
-            $talos_ficha_servicios[] = array(
-                'nombre'      => ( $item instanceof WP_Post ) ? $item->post_title : ( $fila['service_invoice_description'] ?? 'Servicio' ),
-                'frecuencia'  => $fila['service_frequency'] ?? '',
-                'precio'      => (float) ( $fila['service_price'] ?? 0 ),
-                'estatus'     => ! empty( $fila['service_status'] ),
-                'inicio'      => $fila['service_start_date'] ?? '',
-                'fin'         => $fila['service_end_date'] ?? '',
-            );
-        }
+    $talos_posts_servicios = get_posts( array(
+        'post_type' => 'talos_company_service', 'post_status' => 'publish', 'posts_per_page' => -1,
+        'meta_query' => array( array( 'key' => 'service_company', 'value' => $talos_ficha_id ) ),
+    ) );
+    foreach ( $talos_posts_servicios as $talos_servicio_post ) {
+        $item = get_field( 'service_item', $talos_servicio_post->ID );
+        $talos_ficha_servicios[] = array(
+            'nombre'      => ( $item instanceof WP_Post ) ? $item->post_title : ( get_field( 'service_invoice_description', $talos_servicio_post->ID ) ?: 'Servicio' ),
+            'frecuencia'  => get_field( 'service_frequency', $talos_servicio_post->ID ) ?: '',
+            'precio'      => (float) get_field( 'service_price', $talos_servicio_post->ID ),
+            'estatus'     => ! empty( get_field( 'service_status', $talos_servicio_post->ID ) ),
+            'inicio'      => get_field( 'service_start_date', $talos_servicio_post->ID ) ?: '',
+            'fin'         => get_field( 'service_end_date', $talos_servicio_post->ID ) ?: '',
+        );
     }
 }
 

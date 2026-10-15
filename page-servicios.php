@@ -57,24 +57,18 @@ if ( $talos_ficha_id ) {
         'service_ref_price_usd' => get_field( 'service_ref_price_usd', $talos_ficha_id ),
     );
 
-    // No hay relación directa a Empresa: company_services es un repeater dentro
-    // de cada Empresa (sub-campo service_item post_object) — se cuenta a mano.
-    $talos_ficha_empresas_n = 0;
-    $talos_todas_empresas_ids = get_posts( array(
-        'post_type' => 'talos_company', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids',
+    // talos_company_service (antes repeater company_services dentro de cada
+    // Empresa) ya tiene su propio post con service_item post_object -- se
+    // cuenta directo por meta_query, sin recorrer todas las Empresas a mano.
+    $talos_servicios_contratados_ids = get_posts( array(
+        'post_type' => 'talos_company_service', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids',
+        'meta_query' => array( array( 'key' => 'service_item', 'value' => $talos_ficha_id ) ),
     ) );
-    foreach ( $talos_todas_empresas_ids as $empresa_id ) {
-        $filas = get_field( 'company_services', $empresa_id );
-        if ( ! $filas ) continue;
-        foreach ( $filas as $fila ) {
-            $item = $fila['service_item'] ?? null;
-            $item_id = ( $item instanceof WP_Post ) ? $item->ID : (int) $item;
-            if ( $item_id === $talos_ficha_id ) {
-                $talos_ficha_empresas_n++;
-                break;
-            }
-        }
+    $talos_empresas_con_este_servicio = array();
+    foreach ( $talos_servicios_contratados_ids as $servicio_contratado_id ) {
+        $talos_empresas_con_este_servicio[ get_field( 'service_company', $servicio_contratado_id, false ) ] = true;
     }
+    $talos_ficha_empresas_n = count( $talos_empresas_con_este_servicio );
 }
 
 get_header();

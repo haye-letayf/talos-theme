@@ -203,17 +203,24 @@ if ( $talos_es_director ) {
 
         // Una fila por servicio contratado (no por empresa) — sin precio/costo,
         // el rol Consulta ve QUÉ está contratado, no CUÁNTO se cobra.
+        // talos_company_service: antes repeater company_services, migrado a
+        // CPT propio ligado via service_company.
         $talos_mis_servicios = array();
-        foreach ( $talos_mis_empresas_ids as $empresa_id ) {
-            $filas = get_field( 'company_services', $empresa_id );
-            if ( ! is_array( $filas ) ) continue;
-            foreach ( $filas as $fila ) {
-                if ( empty( $fila['service_status'] ) ) continue; // solo servicios activos
-                $item = $fila['service_item'] ?? null;
+        if ( $talos_mis_empresas_ids ) {
+            $talos_mis_posts_servicios = get_posts( array(
+                'post_type' => 'talos_company_service', 'post_status' => 'publish', 'posts_per_page' => -1,
+                'meta_query' => array(
+                    array( 'key' => 'service_company', 'value' => $talos_mis_empresas_ids, 'compare' => 'IN' ),
+                    array( 'key' => 'service_status', 'value' => '1' ),
+                ),
+            ) );
+            foreach ( $talos_mis_posts_servicios as $talos_servicio_post ) {
+                $empresa_id = (int) get_field( 'service_company', $talos_servicio_post->ID, false );
+                $item = get_field( 'service_item', $talos_servicio_post->ID );
                 $talos_mis_servicios[] = array(
                     'empresa'     => get_the_title( $empresa_id ),
                     'servicio'    => ( $item instanceof WP_Post ) ? $item->post_title : 'Servicio',
-                    'descripcion' => $fila['service_invoice_description'] ?? '',
+                    'descripcion' => get_field( 'service_invoice_description', $talos_servicio_post->ID ) ?: '',
                 );
             }
         }
