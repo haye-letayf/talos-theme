@@ -20,9 +20,9 @@ function talos_enqueue_assets() {
     // Tipografía de marca (Once24: Poppins)
     wp_enqueue_style( 'talos-fonts', 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap', array(), null );
 
-    // Shell + componentes propios (sidebar, topbar, tarjetas, tablas, pills, botones) — ver CLAUDE.md:
-    // se decidió portar el CSS ya aprobado en los mockups en vez de pelear con el Bootstrap
-    // de la plantilla base (sus clases .sidenav/.navbar-custom/.bg-home no existen en su propio CSS).
+    // Shell + componentes propios (sidebar, topbar, tarjetas, tablas, pills, botones), portados de
+    // los mockups aprobados. Son los únicos assets del theme: sin Bootstrap ni plantilla de terceros
+    // (Approx se quitó del repo en 2026-10; approx-v1.0/ fuera del theme es solo referencia visual).
     // Versión = filemtime() del archivo, no el Version del theme header: así cada cambio
     // revienta el caché del navegador/plugins solo, sin depender de subir un número a mano.
     $shell_css = $dir . '/assets/css/talos-shell.css';
