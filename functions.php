@@ -73,6 +73,8 @@ function talos_fmt_fecha_corta( $fecha_ymd ) {
  * (lo último que se vio), si no del mes real en curso. header.php vuelve a
  * guardar la cookie en cada carga para que, al navegar a otra sección desde el
  * sidebar, el mes seleccionado se mantenga sin tener que repetirlo en la URL.
+ * La cookie dura 1 hora desde la última página vista: al volver a entrar otro
+ * día, Talos arranca en el mes actual (petición de Jorge 2026-10-23).
  */
 function talos_mes_activo() {
     $param = isset( $_GET['mes'] ) ? sanitize_text_field( wp_unslash( $_GET['mes'] ) ) : '';
@@ -85,7 +87,7 @@ function talos_mes_activo() {
 
 function talos_guardar_mes_activo( DateTime $mes ) {
     if ( ! headers_sent() ) {
-        setcookie( 'talos_mes_activo', $mes->format( 'Y-m' ), time() + 60 * DAY_IN_SECONDS, '/' );
+        setcookie( 'talos_mes_activo', $mes->format( 'Y-m' ), time() + HOUR_IN_SECONDS, '/' );
     }
 }
 
