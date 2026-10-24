@@ -199,6 +199,9 @@ get_header();
               </td>
               <td class="concept">
                 <select class="cell-select" data-role="servicio">
+                  <?php if ( ! $servicio_actual instanceof WP_Post ) : // Sin esto el select mostraba el 1er servicio del catálogo (Campaign INDEED) ?>
+                    <option value="" selected>— Sin servicio —</option>
+                  <?php endif; ?>
                   <?php foreach ( $talos_servicios_cat as $svc ) : ?>
                     <option value="<?php echo esc_attr( $svc->ID ); ?>" <?php selected( $servicio_actual instanceof WP_Post ? $servicio_actual->ID : 0, $svc->ID ); ?>><?php echo esc_html( $svc->post_title ); ?></option>
                   <?php endforeach; ?>
