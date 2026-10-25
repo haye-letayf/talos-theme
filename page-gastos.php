@@ -24,11 +24,12 @@ $talos_subcat_labels = array(
     'gastos_generales'=>'Gastos Generales','educacion'=>'Educación','pendiente'=>'⚠️ Pendiente de Clasificar',
 );
 function talos_gastos_label_subcat( $slug, $mapa ) { return $mapa[ $slug ] ?? $slug; }
-function talos_gastos_mes_corto( $ymd_guion, $cortos ) {
-    // expense_period / expense_payment_date vienen en formato Y-m-d
-    $partes = explode( '-', (string) $ymd_guion );
-    if ( count( $partes ) < 2 ) return '—';
-    return $cortos[ (int) $partes[1] - 1 ] . '/' . $partes[0];
+function talos_gastos_mes_corto( $fecha, $cortos ) {
+    // expense_period devuelve Ymd y expense_payment_date Y-m-d (formato de retorno
+    // distinto en ACF): se toman solo los dígitos para aceptar los dos.
+    $digitos = preg_replace( '/\D/', '', (string) $fecha );
+    if ( strlen( $digitos ) < 6 ) return '—';
+    return $cortos[ (int) substr( $digitos, 4, 2 ) - 1 ] . '/' . substr( $digitos, 0, 4 );
 }
 
 // ===== Atrasados: transacciones no pagadas de ANTES del mes real en curso =====
@@ -205,7 +206,7 @@ get_header();
             $fecha_pago = get_field( 'expense_payment_date', $id );
             ?>
             <tr class="<?php echo 'atrasado' === $fila['grupo'] ? 'atrasado' : ''; ?>" data-group="<?php echo esc_attr( $fila['grupo'] ); ?>" data-expense-id="<?php echo esc_attr( $id ); ?>"
-                data-sort-mes="<?php echo esc_attr( str_replace( '-', '', substr( (string) get_field( 'expense_period', $id ), 0, 7 ) ) ); ?>"
+                data-sort-mes="<?php echo esc_attr( substr( preg_replace( '/\D/', '', (string) get_field( 'expense_period', $id ) ), 0, 6 ) ); ?>"
                 data-sort-categoria="<?php echo esc_attr( $categoria ); ?>"
                 data-sort-subcategoria="<?php echo esc_attr( talos_gastos_label_subcat( $subcategoria, $talos_subcat_labels ) ); ?>"
                 data-sort-proveedor="<?php echo esc_attr( get_field( 'expense_supplier', $id ) ); ?>"
