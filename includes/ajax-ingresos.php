@@ -52,10 +52,16 @@ function talos_ing_destinatarios( $company_id ) {
     if ( empty( $correos ) ) {
         return null;
     }
-    $apellido = get_field( 'contact_lastname', $contacto->ID );
+    // El título del contacto a veces ya trae el apellido ("Diego Domínguez
+    // Navarro"); solo se agrega si no viene, para no saludar con el apellido doble.
+    $nombre   = get_the_title( $contacto->ID );
+    $apellido = trim( (string) get_field( 'contact_lastname', $contacto->ID ) );
+    if ( '' !== $apellido && false === mb_stripos( $nombre, $apellido ) ) {
+        $nombre .= ' ' . $apellido;
+    }
     return array(
         'correos' => $correos,
-        'nombre'  => trim( get_the_title( $contacto->ID ) . ' ' . $apellido ),
+        'nombre'  => trim( $nombre ),
     );
 }
 
