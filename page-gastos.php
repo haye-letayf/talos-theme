@@ -122,6 +122,9 @@ get_header();
   .cat-pill.personal .cat-dot{background:#c99500;}
   table.expenses tbody tr.atrasado{background:var(--danger-soft);}
   table.expenses tbody tr.atrasado:hover{background:var(--danger-soft);filter:brightness(0.97);}
+  .monto-edit{font:inherit;color:inherit;background:none;border:1px dashed transparent;border-radius:6px;padding:2px 6px;margin:-3px -7px;cursor:pointer;}
+  .monto-edit:hover,.monto-edit:focus-visible{border-color:var(--border);background:var(--surface-2);}
+  .monto-input{width:110px;font:inherit;text-align:right;padding:3px 6px;border:1px solid var(--accent);border-radius:6px;background:var(--surface);color:var(--text);}
   .late-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;color:var(--danger);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
 </style>
 
@@ -137,27 +140,27 @@ get_header();
 </div>
 
 <div class="kpi-strip">
-  <div class="metric-box stripe-success"><span class="label">Total Realizados</span><span class="value tabular"><?php echo esc_html( talos_fmt_mxn( $talos_g_realizado ) ); ?></span></div>
-  <div class="metric-box stripe-danger"><span class="label">Total Pendientes</span><span class="value tabular"><?php echo esc_html( talos_fmt_mxn( $talos_g_pendiente ) ); ?></span></div>
-  <div class="metric-box hero"><span class="label">Gastos del Mes</span><span class="value tabular"><?php echo esc_html( talos_fmt_mxn( $talos_g_total_mes ) ); ?></span></div>
+  <div class="metric-box stripe-success"><span class="label">Total Realizados</span><span class="value tabular" data-kpi="realizado" data-valor="<?php echo esc_attr( $talos_g_realizado ); ?>"><?php echo esc_html( talos_fmt_mxn( $talos_g_realizado ) ); ?></span></div>
+  <div class="metric-box stripe-danger"><span class="label">Total Pendientes</span><span class="value tabular" data-kpi="pendiente" data-valor="<?php echo esc_attr( $talos_g_pendiente ); ?>"><?php echo esc_html( talos_fmt_mxn( $talos_g_pendiente ) ); ?></span></div>
+  <div class="metric-box hero"><span class="label">Gastos del Mes</span><span class="value tabular" data-kpi="total" data-valor="<?php echo esc_attr( $talos_g_total_mes ); ?>"><?php echo esc_html( talos_fmt_mxn( $talos_g_total_mes ) ); ?></span></div>
 </div>
 
 <div class="breakdown-card">
   <div class="breakdown-row head"><div>Categoría</div><div>Realizados</div><div>Pendientes</div></div>
   <div class="breakdown-row">
     <div class="breakdown-cat"><span class="cat-dot" style="background:var(--accent)"></span>Gastos de Operación</div>
-    <div class="amt realizado tabular"><?php echo esc_html( talos_fmt_mxn( $talos_cat_realizado['operacion'] ) ); ?></div>
-    <div class="amt pendiente tabular"><?php echo esc_html( talos_fmt_mxn( $talos_cat_pendiente['operacion'] ) ); ?></div>
+    <div class="amt realizado tabular" data-kpi="realizado-operacion" data-valor="<?php echo esc_attr( $talos_cat_realizado['operacion'] ); ?>"><?php echo esc_html( talos_fmt_mxn( $talos_cat_realizado['operacion'] ) ); ?></div>
+    <div class="amt pendiente tabular" data-kpi="pendiente-operacion" data-valor="<?php echo esc_attr( $talos_cat_pendiente['operacion'] ); ?>"><?php echo esc_html( talos_fmt_mxn( $talos_cat_pendiente['operacion'] ) ); ?></div>
   </div>
   <div class="breakdown-row">
     <div class="breakdown-cat"><span class="cat-dot" style="background:#c99500"></span>Gastos Personales</div>
-    <div class="amt realizado tabular"><?php echo esc_html( talos_fmt_mxn( $talos_cat_realizado['personal'] ) ); ?></div>
-    <div class="amt pendiente tabular"><?php echo esc_html( talos_fmt_mxn( $talos_cat_pendiente['personal'] ) ); ?></div>
+    <div class="amt realizado tabular" data-kpi="realizado-personal" data-valor="<?php echo esc_attr( $talos_cat_realizado['personal'] ); ?>"><?php echo esc_html( talos_fmt_mxn( $talos_cat_realizado['personal'] ) ); ?></div>
+    <div class="amt pendiente tabular" data-kpi="pendiente-personal" data-valor="<?php echo esc_attr( $talos_cat_pendiente['personal'] ); ?>"><?php echo esc_html( talos_fmt_mxn( $talos_cat_pendiente['personal'] ) ); ?></div>
   </div>
   <div class="breakdown-row">
     <div class="breakdown-cat"><span class="cat-dot" style="background:var(--danger)"></span>Gastos Atrasados</div>
     <div class="amt muted">—</div>
-    <div class="amt pendiente tabular"><?php echo esc_html( talos_fmt_mxn( $talos_g_atrasado ) ); ?></div>
+    <div class="amt pendiente tabular" data-kpi="atrasado" data-valor="<?php echo esc_attr( $talos_g_atrasado ); ?>"><?php echo esc_html( talos_fmt_mxn( $talos_g_atrasado ) ); ?></div>
   </div>
 </div>
 
@@ -220,7 +223,7 @@ get_header();
               <td><span class="cat-pill <?php echo esc_attr( $categoria ); ?>"><span class="cat-dot"></span><?php echo esc_html( 'operacion' === $categoria ? 'Operación' : 'Personales' ); ?></span></td>
               <td><?php echo esc_html( talos_gastos_label_subcat( $subcategoria, $talos_subcat_labels ) ); ?></td>
               <td class="concept"><div class="sup"><?php echo esc_html( get_field( 'expense_supplier', $id ) ); ?></div><div class="desc"><?php echo esc_html( get_field( 'expense_description', $id ) ); ?></div></td>
-              <td class="num final tabular"><?php echo esc_html( talos_fmt_mxn( $monto ) ); ?></td>
+              <td class="num final tabular"><button type="button" class="monto-edit" data-role="edit-monto" title="Clic para cambiar el monto"><?php echo esc_html( talos_fmt_mxn( $monto ) ); ?></button></td>
               <td>
                 <?php if ( $pagado ) : ?>
                   <span class="paid-chip"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg><?php echo esc_html( $fecha_pago ? talos_gastos_mes_corto( $fecha_pago, $talos_meses_cortos ) : '' ); ?></span>
@@ -352,6 +355,66 @@ try{
       filasPendientesPagoGastos = [];
       updateSelectionBarGastos();
     });
+  });
+
+  // ===== Editar Monto (clic en el monto → Enter guarda, Esc cancela) =====
+  function talosFmtMxnJs(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
+  function ajustarKpiGastos(clave, delta){
+    var el = document.querySelector('[data-kpi="' + clave + '"]');
+    if (!el) return;
+    var valor = parseFloat(el.getAttribute('data-valor')) + delta;
+    el.setAttribute('data-valor', valor);
+    el.textContent = talosFmtMxnJs(valor);
+  }
+  function editarMontoGasto(btn){
+    var fila = btn.closest('tr');
+    var anterior = parseFloat(fila.getAttribute('data-sort-monto')) || 0;
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.inputMode = 'decimal';
+    input.className = 'monto-input';
+    input.value = anterior;
+    btn.replaceWith(input);
+    input.focus();
+    input.select();
+    var terminado = false;
+    function cerrar(){ if (input.parentNode) input.replaceWith(btn); }
+    function guardar(){
+      if (terminado) return;
+      terminado = true;
+      var texto = input.value.replace(/[$,\s]/g, '');
+      if (texto === '' || isNaN(texto) || parseFloat(texto) === anterior){ cerrar(); return; }
+      input.disabled = true;
+      var form = new FormData();
+      form.append('action', 'talos_editar_monto_gasto');
+      form.append('nonce', talosNonceGastos);
+      form.append('expense_id', fila.getAttribute('data-expense-id'));
+      form.append('monto', texto);
+      fetch(talosAjaxUrlGastos, { method: 'POST', body: form, credentials: 'same-origin' }).then(function(r){ return r.json(); }).then(function(res){
+        if (!res.success){ cerrar(); mostrarToastGastos(res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo guardar el monto.'); return; }
+        var delta = res.data.monto - anterior;
+        btn.textContent = res.data.texto;
+        fila.setAttribute('data-sort-monto', res.data.monto);
+        cerrar();
+        if (fila.getAttribute('data-group') === 'atrasado'){
+          ajustarKpiGastos('atrasado', delta);
+        } else {
+          var estado = fila.getAttribute('data-sort-pagado') === '1' ? 'realizado' : 'pendiente';
+          ajustarKpiGastos(estado, delta);
+          ajustarKpiGastos(estado + '-' + fila.getAttribute('data-sort-categoria'), delta);
+          ajustarKpiGastos('total', delta);
+        }
+        mostrarToastGastos('Monto actualizado a ' + res.data.texto + '.');
+      }).catch(function(){ cerrar(); mostrarToastGastos('No se pudo guardar el monto.'); });
+    }
+    input.addEventListener('keydown', function(e){
+      if (e.key === 'Enter'){ e.preventDefault(); guardar(); }
+      if (e.key === 'Escape'){ terminado = true; cerrar(); }
+    });
+    input.addEventListener('blur', guardar);
+  }
+  document.querySelectorAll('[data-role="edit-monto"]').forEach(function(btn){
+    btn.addEventListener('click', function(){ editarMontoGasto(btn); });
   });
 
   // Nuevo Gasto e Importar AMEX: el botón de AMEX ya enlaza al importador real de wp-admin.

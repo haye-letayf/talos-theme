@@ -1,6 +1,6 @@
 <?php
 /**
- * AJAX de Gastos: marcar pagado. A diferencia de Ingresos, no hay envío de
+ * AJAX de Gastos: marcar pagado, editar monto. A diferencia de Ingresos, no hay envío de
  * correo aquí (un gasto no le genera ningún comunicado a un tercero).
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -55,6 +55,46 @@ function talos_ajax_marcar_pagado_gasto_masivo() {
     wp_send_json_success( array( 'ids' => $actualizados, 'fecha_chip' => $fecha_chip ) );
 }
 add_action( 'wp_ajax_talos_marcar_pagado_gasto_masivo', 'talos_ajax_marcar_pagado_gasto_masivo' );
+
+/**
+ * Editar el Monto de un gasto desde la tabla (p. ej. el pago a AMEX Plat, que
+ * la plantilla genera en $14,000 pero varía cada mes). Si el gasto traía
+ * Precio unitario se vacía: el total capturado a mano manda, y si no, el
+ * cálculo Cantidad × Precio de talos-core lo pisaría en el siguiente guardado.
+ */
+function talos_ajax_editar_monto_gasto() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array( 'mensaje' => 'No tienes permiso para editar gastos.' ), 403 );
+    }
+    if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'talos_gastos' ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Sesión inválida, recarga la página.' ), 403 );
+    }
+    $expense_id = isset( $_POST['expense_id'] ) ? (int) $_POST['expense_id'] : 0;
+    if ( ! $expense_id || 'talos_expense' !== get_post_type( $expense_id ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Gasto no válido.' ) );
+    }
+    $texto = str_replace( array( '$', ',', ' ' ), '', wp_unslash( (string) ( $_POST['monto'] ?? '' ) ) );
+    if ( '' === $texto || ! is_numeric( $texto ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Escribe un monto válido (solo números).' ) );
+    }
+    $monto = round( (float) $texto, 2 );
+
+    $anterior = (float) get_field( 'expense_amount', $expense_id );
+    $precio   = get_field( 'expense_unit_price', $expense_id, false );
+    if ( '' !== (string) $precio && null !== $precio ) {
+        update_field( 'expense_unit_price', '', $expense_id );
+    }
+    update_field( 'expense_amount', $monto, $expense_id );
+    do_action( 'acf/save_post', $expense_id );
+
+    $guardado = (float) get_field( 'expense_amount', $expense_id );
+    wp_send_json_success( array(
+        'monto'    => $guardado,
+        'anterior' => $anterior,
+        'texto'    => talos_fmt_mxn( $guardado ),
+    ) );
+}
+add_action( 'wp_ajax_talos_editar_monto_gasto', 'talos_ajax_editar_monto_gasto' );
 
 /**
  * Elimina (mueve a la papelera de WordPress, NO borrado permanente) uno o
