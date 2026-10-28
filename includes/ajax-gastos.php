@@ -27,8 +27,9 @@ add_action( 'wp_ajax_talos_marcar_pagado_gasto', 'talos_ajax_marcar_pagado_gasto
 
 /**
  * Registrar Pago Masivo (varios gastos seleccionados a la vez). Misma acción
- * que el botón individual, solo que para varios IDs — un gasto no le genera
- * ningún correo a nadie, así que no hay nada que agrupar/enviar como en Ingresos.
+ * que el botón individual, solo que para varios IDs. Excepción: las quincenas
+ * de nómina se pagan con talos-core (talos_pagar_quincena_nomina), que suma el
+ * IVA si se pidió y le manda su recibo al colaborador.
  */
 function talos_ajax_marcar_pagado_gasto_masivo() {
     if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'talos_gastos' ) ) {
@@ -44,15 +45,36 @@ function talos_ajax_marcar_pagado_gasto_masivo() {
     $fecha_ymd  = date( 'Y-m-d', $hoy );
     $fecha_chip = date( 'j', $hoy ) . '/' . array( 'ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic' )[ (int) date( 'n', $hoy ) - 1 ] . '/' . date( 'Y', $hoy );
 
+    $con_iva = ! empty( $_POST['nomina_iva'] );
     $actualizados = array();
+    $montos = array();
+    $recibos = 0;
+    $sin_correo = array();
     foreach ( $ids as $id ) {
         if ( 'talos_expense' !== get_post_type( $id ) ) continue;
+        if ( function_exists( 'talos_nomina_es_quincena' ) && talos_nomina_es_quincena( $id ) && ! get_field( 'expense_paid', $id ) ) {
+            $pago = talos_pagar_quincena_nomina( $id, $con_iva );
+            $montos[ $id ] = talos_fmt_mxn( $pago['monto'] );
+            if ( true === $pago['recibo'] ) {
+                $recibos++;
+            } else {
+                $sin_correo[] = get_field( 'expense_supplier', $id );
+            }
+            $actualizados[] = $id;
+            continue;
+        }
         update_field( 'expense_paid', 1, $id );
         update_field( 'expense_payment_date', $fecha_ymd, $id );
         $actualizados[] = $id;
     }
 
-    wp_send_json_success( array( 'ids' => $actualizados, 'fecha_chip' => $fecha_chip ) );
+    wp_send_json_success( array(
+        'ids'        => $actualizados,
+        'fecha_chip' => $fecha_chip,
+        'montos'     => $montos,
+        'recibos'    => $recibos,
+        'sin_correo' => array_values( array_unique( $sin_correo ) ),
+    ) );
 }
 add_action( 'wp_ajax_talos_marcar_pagado_gasto_masivo', 'talos_ajax_marcar_pagado_gasto_masivo' );
 

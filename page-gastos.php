@@ -208,7 +208,7 @@ get_header();
             $pagado = get_field( 'expense_paid', $id );
             $fecha_pago = get_field( 'expense_payment_date', $id );
             ?>
-            <tr class="<?php echo 'atrasado' === $fila['grupo'] ? 'atrasado' : ''; ?>" data-group="<?php echo esc_attr( $fila['grupo'] ); ?>" data-expense-id="<?php echo esc_attr( $id ); ?>"
+            <tr class="<?php echo 'atrasado' === $fila['grupo'] ? 'atrasado' : ''; ?>" data-nomina="<?php echo '' !== (string) get_post_meta( $id, '_talos_nomina_clave', true ) ? 1 : 0; ?>" data-group="<?php echo esc_attr( $fila['grupo'] ); ?>" data-expense-id="<?php echo esc_attr( $id ); ?>"
                 data-sort-mes="<?php echo esc_attr( substr( preg_replace( '/\D/', '', (string) get_field( 'expense_period', $id ) ), 0, 6 ) ); ?>"
                 data-sort-categoria="<?php echo esc_attr( $categoria ); ?>"
                 data-sort-subcategoria="<?php echo esc_attr( talos_gastos_label_subcat( $subcategoria, $talos_subcat_labels ) ); ?>"
@@ -244,6 +244,10 @@ get_header();
     <div class="modal-icon" style="background:var(--success-soft);color:var(--success);"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></div>
     <h4 id="modalPagoGastoTitulo">¿Marcar como pagado?</h4>
     <p id="modalPagoGastoTexto">Se marcará este gasto como Pagado con la fecha de hoy.</p>
+    <div id="modalPagoNomina" hidden style="text-align:left;background:var(--surface-2);border-radius:10px;padding:12px 14px;margin:0 0 16px;font-size:13px;">
+      <label style="display:flex;gap:8px;align-items:center;font-weight:700;cursor:pointer;"><input type="checkbox" id="chkNominaIva"> Lleva IVA (+16% sobre el monto)</label>
+      <div style="color:var(--text-muted);margin-top:6px;">Se le enviará su recibo de nómina a su correo corporativo, con copia oculta a facturas.</div>
+    </div>
     <div class="modal-actions">
       <button class="btn-ghost" data-close-modal>Cancelar</button>
       <button class="btn-confirm" id="btnConfirmarPagoGasto" style="background:var(--success);">Sí, marcar pagado</button>
@@ -321,6 +325,9 @@ try{
     document.getElementById('modalPagoGastoTexto').textContent = n === 1
       ? 'Se marcará este gasto como Pagado con la fecha de hoy.'
       : 'Se marcarán ' + n + ' gastos como Pagados con la fecha de hoy.';
+    var hayNomina = filas.some(function(f){ return f.getAttribute('data-nomina') === '1'; });
+    document.getElementById('modalPagoNomina').hidden = !hayNomina;
+    document.getElementById('chkNominaIva').checked = false;
     modalPagoGasto.classList.add('show');
   }
   document.querySelectorAll('[data-role="pay"]').forEach(function(btn){
@@ -336,6 +343,7 @@ try{
     var form = new FormData();
     form.append('action', 'talos_marcar_pagado_gasto_masivo');
     form.append('nonce', talosNonceGastos);
+    if (document.getElementById('chkNominaIva').checked) form.append('nomina_iva', '1');
     filasPendientesPagoGastos.forEach(function(fila){ form.append('ids[]', fila.getAttribute('data-expense-id')); });
     fetch(talosAjaxUrlGastos, { method: 'POST', body: form, credentials: 'same-origin' }).then(function(r){ return r.json(); }).then(function(res){
       modalPagoGasto.classList.remove('show');
@@ -349,11 +357,19 @@ try{
           btn.replaceWith(chip);
         }
         fila.setAttribute('data-sort-pagado', '1');
+        var nuevoMonto = res.data.montos && res.data.montos[fila.getAttribute('data-expense-id')];
+        var celdaMonto = fila.querySelector('[data-role="edit-monto"]');
+        if (nuevoMonto && celdaMonto) celdaMonto.textContent = nuevoMonto;
         var check = fila.querySelector('.row-check');
         if (check) check.checked = false;
       });
       filasPendientesPagoGastos = [];
       updateSelectionBarGastos();
+      if (res.data.recibos || (res.data.sin_correo && res.data.sin_correo.length)){
+        var aviso = res.data.recibos + ' recibo(s) de nómina enviado(s).';
+        if (res.data.sin_correo.length) aviso += ' Sin correo corporativo: ' + res.data.sin_correo.join(', ') + '.';
+        mostrarToastGastos(aviso);
+      }
     });
   });
 
