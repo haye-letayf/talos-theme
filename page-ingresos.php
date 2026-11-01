@@ -58,6 +58,9 @@ $talos_goal_clase   = $talos_income_goal >= 86 ? 'goal-green' : ( $talos_income_
 // ===== Catálogo de servicios (para el <select> de cada fila) =====
 $talos_servicios_cat = get_posts( array( 'post_type' => 'talos_service_cat', 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC' ) );
 
+// ===== Empresas (para el modal de Nuevo Ingreso) =====
+$talos_ing_empresas = get_posts( array( 'post_type' => 'talos_company', 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC' ) );
+
 $talos_filas = array();
 foreach ( $talos_atrasados_ids as $id ) { $talos_filas[] = array( 'id' => $id, 'grupo' => 'atrasado' ); }
 foreach ( $talos_normales_ids as $id )  { $talos_filas[] = array( 'id' => $id, 'grupo' => 'actual' ); }
@@ -301,6 +304,64 @@ get_header();
   </div>
 </div>
 
+<div class="modal-overlay" id="modalNuevoIngreso">
+  <div class="modal-box">
+    <h4>Nuevo Ingreso</h4>
+    <p class="modal-sub">Para cobros de una sola vez (desarrollos, setups, extras). Lo recurrente lo crea Generar Mes desde los Servicios Contratados.</p>
+    <div class="form-field">
+      <label for="niEmpresa">Empresa</label>
+      <select id="niEmpresa">
+        <option value="" disabled selected>Selecciona una empresa…</option>
+        <?php foreach ( $talos_ing_empresas as $empresa_post ) : ?>
+          <option value="<?php echo esc_attr( $empresa_post->ID ); ?>"><?php echo esc_html( $empresa_post->post_title ); ?></option>
+        <?php endforeach; ?>
+      </select>
+      <span class="field-hint">¿No está en la lista? Primero créala en Empresas.</span>
+    </div>
+    <div class="form-field">
+      <label for="niServicio">Servicio</label>
+      <select id="niServicio">
+        <option value="">— Sin servicio —</option>
+        <?php foreach ( $talos_servicios_cat as $svc ) : ?>
+          <option value="<?php echo esc_attr( $svc->ID ); ?>"><?php echo esc_html( $svc->post_title ); ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+    <div class="form-field">
+      <label for="niDescripcion">Descripción (la que ve el cliente en su nota o factura)</label>
+      <input type="text" id="niDescripcion" placeholder="Ej. Desarrollo de landing page">
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label for="niMes">Mes</label>
+        <input type="month" id="niMes" value="<?php echo esc_attr( $talos_mes_viendo->format( 'Y-m' ) ); ?>">
+      </div>
+      <div class="form-field">
+        <label for="niMonto">Monto sin IVA (MXN)</label>
+        <input type="number" id="niMonto" placeholder="0" step="any" min="0">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label for="niDoc">Documento</label>
+        <select id="niDoc">
+          <option value="nota_venta">Nota de Venta (sin IVA)</option>
+          <option value="factura">Factura (+16% IVA)</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Total</label>
+        <input type="text" id="niTotal" value="$0" readonly tabindex="-1" style="background:var(--surface-2);font-weight:800;">
+      </div>
+    </div>
+    <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin:-4px 0 16px;cursor:pointer;"><input type="checkbox" id="niRecordatorio" checked> Incluir en los recordatorios de cobranza</label>
+    <div class="modal-actions">
+      <button class="btn-ghost" data-close-modal>Cancelar</button>
+      <button class="btn-confirm" id="btnConfirmarNuevoIngreso">Crear Ingreso</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toastIngresos"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg><span id="toastIngresosTexto"></span></div>
 
 <script>
@@ -493,9 +554,40 @@ try{
     });
   });
 
-  // "Nuevo Ingreso" ad-hoc todavía no está conectado a una creación real — próxima iteración.
+  // ===== Nuevo Ingreso (cobro de una sola vez) =====
+  var modalNuevoIngreso = document.getElementById('modalNuevoIngreso');
+  function niRecalcTotal(){
+    var monto = parseFloat(document.getElementById('niMonto').value) || 0;
+    var total = document.getElementById('niDoc').value === 'factura' ? monto * 1.16 : monto;
+    document.getElementById('niTotal').value = '$' + total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+  document.getElementById('niMonto').addEventListener('input', niRecalcTotal);
+  document.getElementById('niDoc').addEventListener('change', niRecalcTotal);
   document.getElementById('btnNuevoIngreso').addEventListener('click', function(){
-    mostrarToast('Registrar un ingreso ad-hoc desde aquí — próximamente en esta misma pantalla.');
+    modalNuevoIngreso.classList.add('show');
+    document.getElementById('niEmpresa').focus();
+  });
+  modalNuevoIngreso.querySelectorAll('[data-close-modal]').forEach(function(b){ b.addEventListener('click', function(){ modalNuevoIngreso.classList.remove('show'); }); });
+  document.getElementById('btnConfirmarNuevoIngreso').addEventListener('click', function(){
+    var btn = this;
+    var datos = {
+      empresa_id: document.getElementById('niEmpresa').value,
+      servicio_id: document.getElementById('niServicio').value,
+      descripcion: document.getElementById('niDescripcion').value.trim(),
+      mes: document.getElementById('niMes').value,
+      monto: document.getElementById('niMonto').value,
+      doc: document.getElementById('niDoc').value,
+      recordatorio: document.getElementById('niRecordatorio').checked ? '1' : ''
+    };
+    if (!datos.empresa_id){ mostrarToast('Selecciona la empresa.'); return; }
+    if (!datos.descripcion){ mostrarToast('Escribe la descripción.'); return; }
+    if (!(parseFloat(datos.monto) > 0)){ mostrarToast('Escribe el monto.'); return; }
+    btn.disabled = true;
+    talosPost('talos_crear_income', datos).then(function(res){
+      btn.disabled = false;
+      if (!res.success){ mostrarToast(res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo crear el ingreso.'); return; }
+      window.location.href = window.location.pathname + '?mes=' + res.data.mes;
+    }).catch(function(){ btn.disabled = false; mostrarToast('No se pudo crear el ingreso.'); });
   });
 
   // ===== Archivos de Factura (PDF + XML) =====

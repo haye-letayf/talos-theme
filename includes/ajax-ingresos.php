@@ -278,6 +278,67 @@ function talos_ajax_enviar_notas() {
 add_action( 'wp_ajax_talos_enviar_notas', 'talos_ajax_enviar_notas' );
 
 /**
+ * Nuevo Ingreso: cobros de una sola vez que no salen de un Servicio Contratado
+ * (desarrollos, setups, extras). Subtotal/Total/IVA los calcula talos-core
+ * (talos_normalizar_income_al_guardar) con el mismo acf/save_post de siempre.
+ */
+function talos_ajax_crear_income() {
+    talos_ing_verificar_nonce();
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array( 'mensaje' => 'No tienes permiso para crear ingresos.' ), 403 );
+    }
+
+    $empresa_id  = isset( $_POST['empresa_id'] ) ? (int) $_POST['empresa_id'] : 0;
+    $servicio_id = isset( $_POST['servicio_id'] ) ? (int) $_POST['servicio_id'] : 0;
+    $descripcion = isset( $_POST['descripcion'] ) ? sanitize_text_field( wp_unslash( $_POST['descripcion'] ) ) : '';
+    $mes         = DateTime::createFromFormat( '!Y-m', isset( $_POST['mes'] ) ? sanitize_text_field( wp_unslash( $_POST['mes'] ) ) : '' );
+    $monto       = isset( $_POST['monto'] ) ? round( (float) $_POST['monto'], 2 ) : 0;
+    $doc         = ( isset( $_POST['doc'] ) && 'factura' === $_POST['doc'] ) ? 'factura' : 'nota_venta';
+
+    if ( ! $empresa_id || 'talos_company' !== get_post_type( $empresa_id ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Selecciona una empresa ya registrada.' ) );
+    }
+    if ( $servicio_id && 'talos_service_cat' !== get_post_type( $servicio_id ) ) {
+        $servicio_id = 0;
+    }
+    if ( '' === $descripcion ) {
+        wp_send_json_error( array( 'mensaje' => 'Escribe la descripción.' ) );
+    }
+    if ( ! $mes ) {
+        wp_send_json_error( array( 'mensaje' => 'Elige el mes.' ) );
+    }
+    if ( $monto <= 0 ) {
+        wp_send_json_error( array( 'mensaje' => 'Escribe un monto mayor a cero.' ) );
+    }
+
+    $nuevo_id = wp_insert_post( array(
+        'post_title'  => sprintf( 'Income %s - Empresa #%d', $mes->format( 'Y-m-d' ), $empresa_id ),
+        'post_type'   => 'talos_income',
+        'post_status' => 'publish',
+    ), true );
+    if ( is_wp_error( $nuevo_id ) ) {
+        wp_send_json_error( array( 'mensaje' => 'No se pudo crear el ingreso.' ) );
+    }
+
+    update_field( 'income_company', $empresa_id, $nuevo_id );
+    if ( $servicio_id ) {
+        update_field( 'income_service', $servicio_id, $nuevo_id );
+    }
+    update_field( 'income_description', $descripcion, $nuevo_id );
+    update_field( 'income_month', $mes->format( 'Ymd' ), $nuevo_id );
+    update_field( 'income_quantity', 1, $nuevo_id );
+    update_field( 'income_unit_price', $monto, $nuevo_id );
+    update_field( 'income_doc_type', $doc, $nuevo_id );
+    update_field( 'income_sent', false, $nuevo_id );
+    update_field( 'income_paid', false, $nuevo_id );
+    update_field( 'income_reminder_allowed', ! empty( $_POST['recordatorio'] ), $nuevo_id );
+    do_action( 'acf/save_post', $nuevo_id );
+
+    wp_send_json_success( array( 'id' => $nuevo_id, 'mes' => $mes->format( 'Y-m' ) ) );
+}
+add_action( 'wp_ajax_talos_crear_income', 'talos_ajax_crear_income' );
+
+/**
  * Edición en línea de una celda de Ingresos (Servicio/Doc/Cant/P.Unit/Descripción).
  * Recalcula y guarda subtotal/total cuando cambia algo que los afecta.
  */
