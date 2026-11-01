@@ -1,8 +1,11 @@
 ---
 # Deploy desde cPanel Git Version Control: solo "Deploy HEAD Commit".
-# Este repo vive clonado directo en wp-content/themes/talos-theme, así que
-# traer lo último de GitHub ya es publicarlo. "Update from Remote" falla sin
-# avisar en este server; con el pull aquí basta el botón Deploy.
+# La primera tarea trae lo último de GitHub ("Update from Remote" falla sin
+# avisar en este server). Hoy el repo está clonado directo en la carpeta del
+# tema, así que el pull ya publica y no se copia nada; cuando viva en
+# ~/repositories/talos-theme (repo privado), además copia al tema.
 deployment:
   tasks:
     - git pull --ff-only origin main
+    - export DEPLOYPATH=/home/jorgeletayf/public_html/talos.1124.com.mx/a/wp-content/themes/talos-theme
+    - 'if [ "$PWD" != "$DEPLOYPATH" ]; then /bin/cp -R * $DEPLOYPATH; fi'
