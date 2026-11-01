@@ -75,7 +75,7 @@ function talos_emp_fecha_input( $ymd ) {
 
 $talos_frecuencia_labels_empresa = array(
     'pago_unico'=>'Pago Único','por_hora'=>'Por Hora','semanal'=>'Semanal','quincenal'=>'Quincenal',
-    'mensual'=>'Mensual','trimestral'=>'Trimestral','semestral'=>'Semestral','anual'=>'Anual',
+    'mensual'=>'Mensual','bimestral'=>'Bimestral','trimestral'=>'Trimestral','semestral'=>'Semestral','anual'=>'Anual',
 );
 
 function talos_empresas_dominio( $url ) {

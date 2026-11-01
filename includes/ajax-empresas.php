@@ -137,7 +137,7 @@ function talos_ajax_guardar_contrato() {
     $contrato_id = isset( $_POST['contrato_id'] ) ? (int) $_POST['contrato_id'] : 0;
     $empresa_id  = isset( $_POST['empresa_id'] ) ? (int) $_POST['empresa_id'] : 0;
     $servicio_id = isset( $_POST['servicio_id'] ) ? (int) $_POST['servicio_id'] : 0;
-    $frecuencias = array( 'pago_unico', 'por_hora', 'semanal', 'quincenal', 'mensual', 'trimestral', 'semestral', 'anual' );
+    $frecuencias = array( 'pago_unico', 'por_hora', 'semanal', 'quincenal', 'mensual', 'bimestral', 'trimestral', 'semestral', 'anual' );
     $frecuencia  = isset( $_POST['frecuencia'] ) ? sanitize_key( $_POST['frecuencia'] ) : '';
     $inicio      = DateTime::createFromFormat( '!Y-m-d', isset( $_POST['inicio'] ) ? sanitize_text_field( wp_unslash( $_POST['inicio'] ) ) : '' );
     $fin_texto   = isset( $_POST['fin'] ) ? sanitize_text_field( wp_unslash( $_POST['fin'] ) ) : '';

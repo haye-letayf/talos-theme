@@ -10,7 +10,7 @@
 
 $talos_frecuencia_labels = array(
     'pago_unico'=>'Pago Único','por_hora'=>'Por Hora','semanal'=>'Semanal','quincenal'=>'Quincenal',
-    'mensual'=>'Mensual','trimestral'=>'Trimestral','semestral'=>'Semestral','anual'=>'Anual',
+    'mensual'=>'Mensual','bimestral'=>'Bimestral','trimestral'=>'Trimestral','semestral'=>'Semestral','anual'=>'Anual',
 );
 
 $talos_ficha_id = isset( $_GET['ficha'] ) ? (int) $_GET['ficha'] : 0;
