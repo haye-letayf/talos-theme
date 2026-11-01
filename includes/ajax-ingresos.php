@@ -26,43 +26,12 @@ function talos_ing_mes_str( $ymd ) {
 }
 
 /**
- * Primer contacto ligado a una Empresa (contact_company == $company_id).
- * Devuelve null si la empresa no tiene ningún contacto registrado.
+ * Destinatarios de notas, facturas y comprobantes: los contactos con "Recibe
+ * Facturas y Cotizaciones" palomeado (talos_destinatarios_facturacion de
+ * talos-core, la misma regla de recordatorios y renovaciones).
  */
-function talos_ing_contacto_de_empresa( $company_id ) {
-    $contactos = get_posts( array(
-        'post_type'      => 'talos_contact',
-        'post_status'    => 'publish',
-        'posts_per_page' => 1,
-        'meta_query'     => array( array( 'key' => 'contact_company', 'value' => $company_id ) ),
-    ) );
-    return $contactos ? $contactos[0] : null;
-}
-
 function talos_ing_destinatarios( $company_id ) {
-    $contacto = talos_ing_contacto_de_empresa( $company_id );
-    if ( ! $contacto ) {
-        return null;
-    }
-    $correos = array();
-    $principal  = get_field( 'contact_company_email', $contacto->ID );
-    $secundario = get_field( 'contact_personal_email', $contacto->ID );
-    if ( $principal ) $correos[] = $principal;
-    if ( $secundario ) $correos[] = $secundario;
-    if ( empty( $correos ) ) {
-        return null;
-    }
-    // El título del contacto a veces ya trae el apellido ("Diego Domínguez
-    // Navarro"); solo se agrega si no viene, para no saludar con el apellido doble.
-    $nombre   = get_the_title( $contacto->ID );
-    $apellido = trim( (string) get_field( 'contact_lastname', $contacto->ID ) );
-    if ( '' !== $apellido && false === mb_stripos( $nombre, $apellido ) ) {
-        $nombre .= ' ' . $apellido;
-    }
-    return array(
-        'correos' => $correos,
-        'nombre'  => trim( $nombre ),
-    );
+    return function_exists( 'talos_destinatarios_facturacion' ) ? talos_destinatarios_facturacion( $company_id ) : null;
 }
 
 /**
