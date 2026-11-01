@@ -5,9 +5,8 @@
  * company_socials (redes sociales) se queda fuera de la ficha por ahora —
  * sigue editándose desde wp-admin, es un repeater y no justifica el esfuerzo
  * de un editor en línea todavía. Servicios contratados (talos_contract,
- * antes un repeater, migrado a CPT propio) sí se muestra, pero SOLO LECTURA —
- * Jorge notó que no aparecía en absoluto, nunca se había construido esa
- * sección. Precio se
+ * antes un repeater, migrado a CPT propio) se muestra, y el Director los da
+ * de alta / edita / cancela desde la ficha (modal, ajax-empresas.php). Precio se
  * oculta para quien no es Director (manage_options): el rol Consulta debe
  * ver QUÉ está contratado, no CUÁNTO se cobra — pedido explícito de Jorge
  * desde que se diseñó el control de acceso, aplicado aquí desde el día 1
@@ -68,6 +67,12 @@ $talos_pais_labels = array(
 );
 // Mismas choices que service_ref_frequency en Servicios — aquí describe la
 // frecuencia con la que se factura cada fila de company_services.
+/** Fecha ACF cruda (Ymd) -> valor de <input type="date"> (Y-m-d). */
+function talos_emp_fecha_input( $ymd ) {
+    $d = preg_replace( '/\D/', '', (string) $ymd );
+    return 8 === strlen( $d ) ? substr( $d, 0, 4 ) . '-' . substr( $d, 4, 2 ) . '-' . substr( $d, 6, 2 ) : '';
+}
+
 $talos_frecuencia_labels_empresa = array(
     'pago_unico'=>'Pago Único','por_hora'=>'Por Hora','semanal'=>'Semanal','quincenal'=>'Quincenal',
     'mensual'=>'Mensual','trimestral'=>'Trimestral','semestral'=>'Semestral','anual'=>'Anual',
@@ -191,11 +196,10 @@ if ( $talos_ficha_id ) {
         'meta_query' => array( array( 'key' => 'income_company', 'value' => $talos_ficha_id ) ),
     ) ) );
 
-    // Servicios contratados (talos_contract, antes repeater, migrado
-    // a CPT propio) — solo lectura por ahora, editar sigue siendo desde
-    // wp-admin (igual que company_socials). Precio/costo solo se muestran a
-    // Director (manage_options) — el rol Consulta debe ver QUÉ está
-    // contratado, no CUÁNTO se cobra.
+    // Servicios contratados (talos_contract, antes repeater, migrado a CPT
+    // propio). Precio/costo solo se muestran a Director (manage_options) —
+    // el rol Consulta debe ver QUÉ está contratado, no CUÁNTO se cobra. Los
+    // valores crudos ('datos') alimentan el modal de edición.
     $talos_ficha_servicios = array();
     $talos_posts_servicios = get_posts( array(
         'post_type' => 'talos_contract', 'post_status' => 'publish', 'posts_per_page' => -1,
@@ -210,8 +214,26 @@ if ( $talos_ficha_id ) {
             'estatus'     => ! empty( get_field( 'service_status', $talos_servicio_post->ID ) ),
             'inicio'      => get_field( 'service_start_date', $talos_servicio_post->ID ) ?: '',
             'fin'         => get_field( 'service_end_date', $talos_servicio_post->ID ) ?: '',
+            'datos'       => array(
+                'id'           => $talos_servicio_post->ID,
+                'servicio'     => (int) get_field( 'service_item', $talos_servicio_post->ID, false ),
+                'descripcion'  => (string) get_field( 'service_invoice_description', $talos_servicio_post->ID ),
+                'frecuencia'   => (string) get_field( 'service_frequency', $talos_servicio_post->ID ),
+                'precio'       => (string) get_field( 'service_price', $talos_servicio_post->ID, false ),
+                'costo'        => (string) get_field( 'service_cost', $talos_servicio_post->ID, false ),
+                'iva'          => (bool) get_field( 'service_applies_iva', $talos_servicio_post->ID ),
+                'diferido'     => (bool) get_field( 'service_deferred', $talos_servicio_post->ID ),
+                'meses'        => (string) get_field( 'service_deferred_months', $talos_servicio_post->ID, false ),
+                'inicio'       => talos_emp_fecha_input( get_field( 'service_start_date', $talos_servicio_post->ID, false ) ),
+                'fin'          => talos_emp_fecha_input( get_field( 'service_end_date', $talos_servicio_post->ID, false ) ),
+                'activo'       => (bool) get_field( 'service_status', $talos_servicio_post->ID ),
+                'recordatorio' => (bool) get_field( 'service_reminder_allowed', $talos_servicio_post->ID ),
+            ),
         );
     }
+    // Activos primero
+    usort( $talos_ficha_servicios, function ( $a, $b ) { return (int) $b['estatus'] - (int) $a['estatus']; } );
+    $talos_catalogo_servicios = get_posts( array( 'post_type' => 'talos_service_cat', 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC' ) );
 }
 
 get_header();
@@ -406,6 +428,7 @@ get_header();
                 <th>Vigencia</th>
                 <?php if ( current_user_can( 'manage_options' ) ) : ?><th class="num">Precio</th><?php endif; ?>
                 <th>Estatus</th>
+                <?php if ( current_user_can( 'manage_options' ) ) : ?><th></th><?php endif; ?>
               </tr>
             </thead>
             <tbody>
@@ -416,6 +439,7 @@ get_header();
                   <td><?php echo esc_html( ( $s['inicio'] ?: '—' ) . ( $s['fin'] ? ' – ' . $s['fin'] : '' ) ); ?></td>
                   <?php if ( current_user_can( 'manage_options' ) ) : ?><td class="num tabular"><?php echo esc_html( talos_fmt_mxn( $s['precio'] ) ); ?></td><?php endif; ?>
                   <td><span class="pill status-<?php echo $s['estatus'] ? 'active' : 'inactive'; ?>"><span class="pill-dot"></span><?php echo $s['estatus'] ? 'Activo' : 'Inactivo'; ?></span></td>
+                  <?php if ( current_user_can( 'manage_options' ) ) : ?><td><button type="button" class="action-btn edit" data-role="editar-contrato" data-contrato="<?php echo esc_attr( wp_json_encode( $s['datos'] ) ); ?>" title="Editar servicio"><svg viewBox="0 0 24 24"><use href="#i-edit"/></svg></button></td><?php endif; ?>
                 </tr>
               <?php endforeach; ?>
             </tbody>
@@ -423,8 +447,78 @@ get_header();
         </div>
       </div>
     <?php endif; ?>
-    <p class="field-hint" style="margin-top:16px;">Solo lectura — agregar o quitar servicios contratados sigue siendo desde wp-admin.</p>
+    <?php if ( current_user_can( 'manage_options' ) ) : ?>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap;">
+        <p class="field-hint" style="margin:0;">Para cancelar un servicio, edítalo y quita "Activo" o ponle fecha de fin. Generar Mes cobra solo los activos.</p>
+        <button type="button" class="btn-secondary" id="btnAgregarContrato"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg>Agregar servicio</button>
+      </div>
+    <?php endif; ?>
   </div>
+
+  <?php if ( current_user_can( 'manage_options' ) ) : ?>
+  <div class="modal-overlay" id="modalContrato">
+    <div class="modal-box" style="max-width:560px;">
+      <h4 id="modalContratoTitulo">Agregar servicio</h4>
+      <p class="modal-sub">Lo que Generar Mes le cobra a <?php echo esc_html( $f['nombre'] ); ?> cada periodo.</p>
+      <div class="form-field">
+        <label for="ctServicio">Servicio del catálogo</label>
+        <select id="ctServicio">
+          <option value="">Selecciona…</option>
+          <?php foreach ( $talos_catalogo_servicios as $svc ) : ?>
+            <option value="<?php echo esc_attr( $svc->ID ); ?>"><?php echo esc_html( $svc->post_title ); ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="ctDescripcion">Descripción en nota / factura</label>
+        <input type="text" id="ctDescripcion" placeholder="Ej. Administración de campaña META">
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label for="ctFrecuencia">Frecuencia</label>
+          <select id="ctFrecuencia">
+            <?php foreach ( $talos_frecuencia_labels_empresa as $slug => $label ) : ?>
+              <option value="<?php echo esc_attr( $slug ); ?>" <?php selected( $slug, 'mensual' ); ?>><?php echo esc_html( $label ); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="ctPrecio">Precio sin IVA (MXN)</label>
+          <input type="number" id="ctPrecio" step="any" min="0" placeholder="0">
+        </div>
+        <div class="form-field">
+          <label for="ctCosto">Costo (MXN)</label>
+          <input type="number" id="ctCosto" step="any" min="0" placeholder="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label for="ctInicio">Fecha de inicio</label>
+          <input type="date" id="ctInicio">
+        </div>
+        <div class="form-field">
+          <label for="ctFin">Fecha de fin (opcional)</label>
+          <input type="date" id="ctFin">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;font-size:13px;margin:-2px 0 14px;">
+        <label style="display:flex;gap:8px;align-items:center;cursor:pointer;"><input type="checkbox" id="ctIva"> Factura (+16% IVA)</label>
+        <label style="display:flex;gap:8px;align-items:center;cursor:pointer;"><input type="checkbox" id="ctActivo" checked> Activo</label>
+        <label style="display:flex;gap:8px;align-items:center;cursor:pointer;"><input type="checkbox" id="ctRecordatorio" checked> Recordatorios de cobranza</label>
+        <label style="display:flex;gap:8px;align-items:center;cursor:pointer;"><input type="checkbox" id="ctDiferido"> Pago diferido</label>
+      </div>
+      <div class="form-field" id="ctMesesWrap" hidden>
+        <label for="ctMeses">Meses del diferido</label>
+        <input type="number" id="ctMeses" min="1" step="1" placeholder="Ej. 12">
+        <span class="field-hint">El precio es el total del proyecto; cada mes se cobra precio ÷ meses, con la leyenda "Pago X de Y".</span>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" data-close-modal>Cancelar</button>
+        <button class="btn-confirm" id="btnGuardarContrato">Guardar servicio</button>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
 
   <div class="ficha-modo-vista" style="display:flex;justify-content:flex-end;margin-top:4px;">
     <button type="button" class="btn-danger solo-editando" id="btnEliminarEmpresa"><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg>Eliminar Empresa</button>
@@ -618,6 +712,67 @@ try{
   <?php if ( $talos_ficha_editando && current_user_can( 'manage_options' ) ) : ?>document.body.classList.add('editando');<?php endif; ?>
 
   <?php if ( current_user_can( 'manage_options' ) ) : ?>
+  // ===== Servicios Contratados: agregar / editar (mismo modal) =====
+  var modalContrato = document.getElementById('modalContrato');
+  var contratoEditando = 0;
+  function abrirModalContrato(d){
+    contratoEditando = d ? d.id : 0;
+    document.getElementById('modalContratoTitulo').textContent = d ? 'Editar servicio' : 'Agregar servicio';
+    document.getElementById('ctServicio').value = d && d.servicio ? String(d.servicio) : '';
+    document.getElementById('ctDescripcion').value = d ? d.descripcion : '';
+    document.getElementById('ctFrecuencia').value = d && d.frecuencia ? d.frecuencia : 'mensual';
+    document.getElementById('ctPrecio').value = d ? d.precio : '';
+    document.getElementById('ctCosto').value = d ? d.costo : '';
+    document.getElementById('ctInicio').value = d ? d.inicio : '';
+    document.getElementById('ctFin').value = d ? d.fin : '';
+    document.getElementById('ctIva').checked = d ? d.iva : false;
+    document.getElementById('ctActivo').checked = d ? d.activo : true;
+    document.getElementById('ctRecordatorio').checked = d ? d.recordatorio : true;
+    document.getElementById('ctDiferido').checked = d ? d.diferido : false;
+    document.getElementById('ctMeses').value = d ? d.meses : '';
+    document.getElementById('ctMesesWrap').hidden = !document.getElementById('ctDiferido').checked;
+    modalContrato.classList.add('show');
+  }
+  document.getElementById('btnAgregarContrato').addEventListener('click', function(){ abrirModalContrato(null); });
+  document.querySelectorAll('[data-role="editar-contrato"]').forEach(function(btn){
+    btn.addEventListener('click', function(){ abrirModalContrato(JSON.parse(btn.getAttribute('data-contrato'))); });
+  });
+  document.getElementById('ctDiferido').addEventListener('change', function(){ document.getElementById('ctMesesWrap').hidden = !this.checked; });
+  modalContrato.querySelectorAll('[data-close-modal]').forEach(function(b){ b.addEventListener('click', function(){ modalContrato.classList.remove('show'); }); });
+  document.getElementById('btnGuardarContrato').addEventListener('click', function(){
+    var btn = this;
+    var campos = {
+      contrato_id: contratoEditando,
+      empresa_id: <?php echo (int) $talos_ficha_id; ?>,
+      servicio_id: document.getElementById('ctServicio').value,
+      descripcion: document.getElementById('ctDescripcion').value.trim(),
+      frecuencia: document.getElementById('ctFrecuencia').value,
+      precio: document.getElementById('ctPrecio').value,
+      costo: document.getElementById('ctCosto').value,
+      inicio: document.getElementById('ctInicio').value,
+      fin: document.getElementById('ctFin').value,
+      iva: document.getElementById('ctIva').checked ? '1' : '',
+      activo: document.getElementById('ctActivo').checked ? '1' : '',
+      recordatorio: document.getElementById('ctRecordatorio').checked ? '1' : '',
+      diferido: document.getElementById('ctDiferido').checked ? '1' : '',
+      meses: document.getElementById('ctMeses').value
+    };
+    if (!campos.servicio_id){ mostrarToastEmpresas('Elige el servicio del catálogo.'); return; }
+    if (campos.precio === '' || parseFloat(campos.precio) < 0){ mostrarToastEmpresas('Escribe el precio.'); return; }
+    if (!campos.inicio){ mostrarToastEmpresas('Elige la fecha de inicio.'); return; }
+    if (campos.diferido && !(parseInt(campos.meses, 10) > 0)){ mostrarToastEmpresas('Escribe los meses del diferido.'); return; }
+    var form = new FormData();
+    form.append('action', 'talos_guardar_contrato');
+    form.append('nonce', talosNonceEmp);
+    Object.keys(campos).forEach(function(k){ form.append(k, campos[k]); });
+    btn.disabled = true;
+    fetch(talosAjaxUrlEmp, { method: 'POST', body: form, credentials: 'same-origin' }).then(function(r){ return r.json(); }).then(function(res){
+      btn.disabled = false;
+      if (!res.success){ mostrarToastEmpresas(res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo guardar el servicio.'); return; }
+      window.location.reload();
+    }).catch(function(){ btn.disabled = false; mostrarToastEmpresas('No se pudo guardar el servicio.'); });
+  });
+
   document.getElementById('btnEditarFicha').addEventListener('click', function(){
     document.body.classList.add('editando');
   });

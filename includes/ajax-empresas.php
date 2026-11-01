@@ -125,3 +125,77 @@ function talos_ajax_eliminar_empresa() {
     wp_send_json_success();
 }
 add_action( 'wp_ajax_talos_eliminar_empresa', 'talos_ajax_eliminar_empresa' );
+
+/**
+ * Alta / edición de un Servicio Contratado (talos_contract) desde la ficha de
+ * la Empresa. La Utilidad (precio − costo) la calcula talos-core en
+ * acf/save_post; aquí solo se capturan los campos.
+ */
+function talos_ajax_guardar_contrato() {
+    talos_emp_verificar_nonce();
+
+    $contrato_id = isset( $_POST['contrato_id'] ) ? (int) $_POST['contrato_id'] : 0;
+    $empresa_id  = isset( $_POST['empresa_id'] ) ? (int) $_POST['empresa_id'] : 0;
+    $servicio_id = isset( $_POST['servicio_id'] ) ? (int) $_POST['servicio_id'] : 0;
+    $frecuencias = array( 'pago_unico', 'por_hora', 'semanal', 'quincenal', 'mensual', 'trimestral', 'semestral', 'anual' );
+    $frecuencia  = isset( $_POST['frecuencia'] ) ? sanitize_key( $_POST['frecuencia'] ) : '';
+    $inicio      = DateTime::createFromFormat( '!Y-m-d', isset( $_POST['inicio'] ) ? sanitize_text_field( wp_unslash( $_POST['inicio'] ) ) : '' );
+    $fin_texto   = isset( $_POST['fin'] ) ? sanitize_text_field( wp_unslash( $_POST['fin'] ) ) : '';
+    $fin         = '' === $fin_texto ? null : DateTime::createFromFormat( '!Y-m-d', $fin_texto );
+    $diferido    = ! empty( $_POST['diferido'] );
+    $meses       = isset( $_POST['meses'] ) ? (int) $_POST['meses'] : 0;
+
+    if ( ! $empresa_id || 'talos_company' !== get_post_type( $empresa_id ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Empresa no válida.' ) );
+    }
+    if ( $contrato_id && ( 'talos_contract' !== get_post_type( $contrato_id ) || (int) get_field( 'service_company', $contrato_id, false ) !== $empresa_id ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Ese servicio no es de esta empresa.' ) );
+    }
+    if ( ! $servicio_id || 'talos_service_cat' !== get_post_type( $servicio_id ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Elige el servicio del catálogo.' ) );
+    }
+    if ( ! in_array( $frecuencia, $frecuencias, true ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Elige la frecuencia.' ) );
+    }
+    if ( ! $inicio ) {
+        wp_send_json_error( array( 'mensaje' => 'Elige la fecha de inicio.' ) );
+    }
+    if ( '' !== $fin_texto && ( ! $fin || $fin < $inicio ) ) {
+        wp_send_json_error( array( 'mensaje' => 'La fecha de fin debe ser posterior al inicio.' ) );
+    }
+    if ( $diferido && $meses < 1 ) {
+        wp_send_json_error( array( 'mensaje' => 'Escribe los meses del diferido.' ) );
+    }
+
+    $titulo = get_the_title( $empresa_id ) . ' – ' . get_the_title( $servicio_id );
+    if ( $contrato_id ) {
+        wp_update_post( array( 'ID' => $contrato_id, 'post_title' => $titulo ) );
+    } else {
+        $contrato_id = wp_insert_post( array(
+            'post_type'   => 'talos_contract',
+            'post_title'  => $titulo,
+            'post_status' => 'publish',
+        ), true );
+        if ( is_wp_error( $contrato_id ) ) {
+            wp_send_json_error( array( 'mensaje' => 'No se pudo crear el servicio.' ) );
+        }
+    }
+
+    update_field( 'service_company', $empresa_id, $contrato_id );
+    update_field( 'service_item', $servicio_id, $contrato_id );
+    update_field( 'service_invoice_description', sanitize_text_field( wp_unslash( $_POST['descripcion'] ?? '' ) ), $contrato_id );
+    update_field( 'service_frequency', $frecuencia, $contrato_id );
+    update_field( 'service_price', round( (float) ( $_POST['precio'] ?? 0 ), 2 ), $contrato_id );
+    update_field( 'service_cost', round( (float) ( $_POST['costo'] ?? 0 ), 2 ), $contrato_id );
+    update_field( 'service_applies_iva', ! empty( $_POST['iva'] ) ? 1 : 0, $contrato_id );
+    update_field( 'service_deferred', $diferido ? 1 : 0, $contrato_id );
+    update_field( 'service_deferred_months', $diferido ? $meses : '', $contrato_id );
+    update_field( 'service_start_date', $inicio->format( 'Ymd' ), $contrato_id );
+    update_field( 'service_end_date', $fin ? $fin->format( 'Ymd' ) : '', $contrato_id );
+    update_field( 'service_status', ! empty( $_POST['activo'] ) ? 1 : 0, $contrato_id );
+    update_field( 'service_reminder_allowed', ! empty( $_POST['recordatorio'] ) ? 1 : 0, $contrato_id );
+    do_action( 'acf/save_post', $contrato_id );
+
+    wp_send_json_success( array( 'id' => $contrato_id ) );
+}
+add_action( 'wp_ajax_talos_guardar_contrato', 'talos_ajax_guardar_contrato' );
