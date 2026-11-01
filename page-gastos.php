@@ -503,6 +503,26 @@ try{
 
   // Nuevo Gasto e Importar AMEX: el botón de AMEX ya enlaza al importador real de wp-admin.
   var modalNuevoGasto = document.getElementById('modalNuevoGasto');
+  // Subcategorías según la categoría (talos_subcategorias_por_categoria de talos-core)
+  var talosSubcatMapa = <?php echo wp_json_encode( function_exists( 'talos_subcategorias_por_categoria' ) ? talos_subcategorias_por_categoria() : null ); ?>;
+  var ngCat = document.getElementById('ngCategoria');
+  var ngSub = document.getElementById('ngSubcategoria');
+  var ngSubTodas = Array.prototype.map.call(ngSub.options, function(o){ return { valor: o.value, texto: o.text }; });
+  function filtrarSubcatGasto(){
+    if (!talosSubcatMapa) return;
+    var permitidas = talosSubcatMapa[ngCat.value] || [];
+    var actual = ngSub.value;
+    ngSub.innerHTML = '';
+    ngSubTodas.forEach(function(o){
+      if (o.valor === '' || permitidas.indexOf(o.valor) !== -1){
+        var opt = new Option(o.texto, o.valor, false, o.valor === actual);
+        if (o.valor === ''){ opt.disabled = true; opt.selected = permitidas.indexOf(actual) === -1; }
+        ngSub.add(opt);
+      }
+    });
+  }
+  ngCat.addEventListener('change', filtrarSubcatGasto);
+  filtrarSubcatGasto();
   document.getElementById('btnNuevoGasto').addEventListener('click', function(){
     modalNuevoGasto.classList.add('show');
     document.getElementById('ngSubcategoria').focus();
