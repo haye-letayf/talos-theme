@@ -23,6 +23,14 @@ $talos_subcat_labels = array(
     'super'=>'Súper','suscripciones'=>'Suscripciones','telefonia'=>'Telefonía','viajes_hospedaje'=>'Viajes y Hospedaje',
     'gastos_generales'=>'Gastos Generales','educacion'=>'Educación','pendiente'=>'⚠️ Pendiente de Clasificar',
 );
+// Las opciones vivas del campo en ACF mandan (el mapa de arriba se quedó sin
+// Pago de Deuda, Renta, Servicios Profesionales…); el mapa queda de respaldo.
+$talos_subcat_acf = function_exists( 'acf_get_field' ) ? acf_get_field( 'expense_subcategory' ) : null;
+if ( ! empty( $talos_subcat_acf['choices'] ) ) {
+    $talos_subcat_labels = $talos_subcat_acf['choices'];
+}
+$talos_metodo_acf    = function_exists( 'acf_get_field' ) ? acf_get_field( 'expense_payment_method' ) : null;
+$talos_metodos_pago  = ! empty( $talos_metodo_acf['choices'] ) ? $talos_metodo_acf['choices'] : array( 'amex' => 'AMEX', 'debito' => 'Débito', 'efectivo' => 'Efectivo', 'transferencia' => 'Transferencia' );
 function talos_gastos_label_subcat( $slug, $mapa ) { return $mapa[ $slug ] ?? $slug; }
 function talos_gastos_mes_corto( $fecha, $cortos ) {
     // expense_period devuelve Ymd y expense_payment_date Y-m-d (formato de retorno
@@ -285,6 +293,66 @@ get_header();
   </div>
 </div>
 
+<div class="modal-overlay" id="modalNuevoGasto">
+  <div class="modal-box">
+    <h4>Nuevo Gasto</h4>
+    <p class="modal-sub">Para gastos eventuales. Los fijos los crea Generar Mes desde las Plantillas de Gasto, y los de AMEX llegan con "Subir Movimientos AMEX".</p>
+    <div class="form-row">
+      <div class="form-field">
+        <label for="ngCategoria">Categoría</label>
+        <select id="ngCategoria">
+          <option value="operacion">Operación</option>
+          <option value="personal">Personal</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="ngSubcategoria">Subcategoría</label>
+        <select id="ngSubcategoria">
+          <option value="" disabled selected>Selecciona…</option>
+          <?php foreach ( $talos_subcat_labels as $slug => $label ) : if ( 'pendiente' === $slug ) continue; ?>
+            <option value="<?php echo esc_attr( $slug ); ?>"><?php echo esc_html( $label ); ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+    </div>
+    <div class="form-field">
+      <label for="ngProveedor">Proveedor</label>
+      <input type="text" id="ngProveedor" placeholder="Ej. Telcel, Contador, Liverpool">
+    </div>
+    <div class="form-field">
+      <label for="ngDescripcion">Descripción</label>
+      <input type="text" id="ngDescripcion" placeholder="Opcional">
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label for="ngFecha">Fecha</label>
+        <input type="date" id="ngFecha" value="<?php echo esc_attr( $talos_mes_viendo->format( 'Y-m' ) === current_time( 'Y-m' ) ? current_time( 'Y-m-d' ) : $talos_mes_viendo->format( 'Y-m-01' ) ); ?>">
+      </div>
+      <div class="form-field">
+        <label for="ngMonto">Monto (MXN)</label>
+        <input type="number" id="ngMonto" placeholder="0" step="any">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label for="ngMetodo">Método de pago</label>
+        <select id="ngMetodo">
+          <?php foreach ( $talos_metodos_pago as $slug => $label ) : ?>
+            <option value="<?php echo esc_attr( $slug ); ?>" <?php selected( $slug, 'transferencia' ); ?>><?php echo esc_html( $label ); ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="form-field" style="justify-content:flex-end;">
+        <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);cursor:pointer;padding-bottom:10px;"><input type="checkbox" id="ngPagado" checked> Ya está pagado</label>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" data-close-modal>Cancelar</button>
+      <button class="btn-confirm" id="btnConfirmarNuevoGasto">Crear Gasto</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toastGastos"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg><span id="toastGastosTexto"></span></div>
 
 <script>
@@ -434,8 +502,38 @@ try{
   });
 
   // Nuevo Gasto e Importar AMEX: el botón de AMEX ya enlaza al importador real de wp-admin.
+  var modalNuevoGasto = document.getElementById('modalNuevoGasto');
   document.getElementById('btnNuevoGasto').addEventListener('click', function(){
-    mostrarToastGastos('Registrar un gasto eventual desde aquí — próximamente en esta misma pantalla.');
+    modalNuevoGasto.classList.add('show');
+    document.getElementById('ngSubcategoria').focus();
+  });
+  modalNuevoGasto.querySelectorAll('[data-close-modal]').forEach(function(b){ b.addEventListener('click', function(){ modalNuevoGasto.classList.remove('show'); }); });
+  document.getElementById('btnConfirmarNuevoGasto').addEventListener('click', function(){
+    var btn = this;
+    var campos = {
+      categoria: document.getElementById('ngCategoria').value,
+      subcategoria: document.getElementById('ngSubcategoria').value,
+      proveedor: document.getElementById('ngProveedor').value.trim(),
+      descripcion: document.getElementById('ngDescripcion').value.trim(),
+      fecha: document.getElementById('ngFecha').value,
+      monto: document.getElementById('ngMonto').value,
+      metodo: document.getElementById('ngMetodo').value,
+      pagado: document.getElementById('ngPagado').checked ? '1' : ''
+    };
+    if (!campos.subcategoria){ mostrarToastGastos('Elige la subcategoría.'); return; }
+    if (!campos.proveedor){ mostrarToastGastos('Escribe el proveedor.'); return; }
+    if (!campos.fecha){ mostrarToastGastos('Elige la fecha.'); return; }
+    if (campos.monto === '' || isNaN(campos.monto) || parseFloat(campos.monto) === 0){ mostrarToastGastos('Escribe el monto.'); return; }
+    var form = new FormData();
+    form.append('action', 'talos_crear_gasto');
+    form.append('nonce', talosNonceGastos);
+    Object.keys(campos).forEach(function(k){ form.append(k, campos[k]); });
+    btn.disabled = true;
+    fetch(talosAjaxUrlGastos, { method: 'POST', body: form, credentials: 'same-origin' }).then(function(r){ return r.json(); }).then(function(res){
+      btn.disabled = false;
+      if (!res.success){ mostrarToastGastos(res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo crear el gasto.'); return; }
+      window.location.href = window.location.pathname + '?mes=' + res.data.mes;
+    }).catch(function(){ btn.disabled = false; mostrarToastGastos('No se pudo crear el gasto.'); });
   });
 
   // ===== Selección de filas + Eliminar (individual o masivo) =====

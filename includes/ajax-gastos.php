@@ -119,6 +119,69 @@ function talos_ajax_editar_monto_gasto() {
 add_action( 'wp_ajax_talos_editar_monto_gasto', 'talos_ajax_editar_monto_gasto' );
 
 /**
+ * Nuevo Gasto eventual (los fijos salen de Plantillas y los de tarjeta del
+ * importador AMEX). Si ya está pagado, la fecha de pago es la del gasto.
+ */
+function talos_ajax_crear_gasto() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array( 'mensaje' => 'No tienes permiso para crear gastos.' ), 403 );
+    }
+    if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'talos_gastos' ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Sesión inválida, recarga la página.' ), 403 );
+    }
+    $categoria    = ( isset( $_POST['categoria'] ) && 'personal' === $_POST['categoria'] ) ? 'personal' : 'operacion';
+    $subcategoria = isset( $_POST['subcategoria'] ) ? sanitize_key( $_POST['subcategoria'] ) : '';
+    $proveedor    = isset( $_POST['proveedor'] ) ? sanitize_text_field( wp_unslash( $_POST['proveedor'] ) ) : '';
+    $descripcion  = isset( $_POST['descripcion'] ) ? sanitize_text_field( wp_unslash( $_POST['descripcion'] ) ) : '';
+    $fecha        = DateTime::createFromFormat( '!Y-m-d', isset( $_POST['fecha'] ) ? sanitize_text_field( wp_unslash( $_POST['fecha'] ) ) : '' );
+    $monto        = isset( $_POST['monto'] ) ? round( (float) $_POST['monto'], 2 ) : 0;
+    $metodo       = isset( $_POST['metodo'] ) ? sanitize_key( $_POST['metodo'] ) : '';
+    $pagado       = ! empty( $_POST['pagado'] );
+
+    $campo_subcat = function_exists( 'acf_get_field' ) ? acf_get_field( 'expense_subcategory' ) : null;
+    if ( '' === $subcategoria || ( ! empty( $campo_subcat['choices'] ) && ! isset( $campo_subcat['choices'][ $subcategoria ] ) ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Elige una subcategoría válida.' ) );
+    }
+    if ( '' === $proveedor ) {
+        wp_send_json_error( array( 'mensaje' => 'Escribe el proveedor.' ) );
+    }
+    if ( ! $fecha ) {
+        wp_send_json_error( array( 'mensaje' => 'Elige la fecha.' ) );
+    }
+    if ( 0.0 === $monto ) {
+        wp_send_json_error( array( 'mensaje' => 'Escribe el monto.' ) );
+    }
+
+    $nuevo_id = wp_insert_post( array(
+        'post_title'  => $proveedor . ' - ' . $fecha->format( 'Y-m-d' ),
+        'post_type'   => 'talos_expense',
+        'post_status' => 'publish',
+    ), true );
+    if ( is_wp_error( $nuevo_id ) ) {
+        wp_send_json_error( array( 'mensaje' => 'No se pudo crear el gasto.' ) );
+    }
+
+    update_field( 'expense_type', 'transaccion', $nuevo_id );
+    update_field( 'expense_category', $categoria, $nuevo_id );
+    update_field( 'expense_subcategory', $subcategoria, $nuevo_id );
+    update_field( 'expense_supplier', $proveedor, $nuevo_id );
+    update_field( 'expense_description', $descripcion, $nuevo_id );
+    update_field( 'expense_amount', $monto, $nuevo_id );
+    update_field( 'expense_frequency', 'pago_unico', $nuevo_id );
+    update_field( 'expense_payment_method', $metodo, $nuevo_id );
+    update_field( 'expense_period', $fecha->format( 'Ymd' ), $nuevo_id );
+    update_field( 'expense_status', true, $nuevo_id );
+    update_field( 'expense_paid', $pagado ? 1 : 0, $nuevo_id );
+    if ( $pagado ) {
+        update_field( 'expense_payment_date', $fecha->format( 'Ymd' ), $nuevo_id );
+    }
+    do_action( 'acf/save_post', $nuevo_id );
+
+    wp_send_json_success( array( 'id' => $nuevo_id, 'mes' => $fecha->format( 'Y-m' ) ) );
+}
+add_action( 'wp_ajax_talos_crear_gasto', 'talos_ajax_crear_gasto' );
+
+/**
  * Elimina (mueve a la papelera de WordPress, NO borrado permanente) uno o
  * varios Gastos. Igual criterio que Ingresos: recuperable desde wp-admin.
  */
