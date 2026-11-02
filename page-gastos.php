@@ -73,6 +73,9 @@ $talos_normales_ids = get_posts( array(
         array( 'key' => 'expense_period', 'value' => array( $talos_inicio_mes, $talos_fin_mes ), 'compare' => 'BETWEEN', 'type' => 'DATE' ),
     ),
 ) );
+// Viendo un mes pasado, lo no pagado de ese mes ya sale arriba como Atrasado:
+// sin esto aparecía dos veces y las métricas lo sumaban doble.
+$talos_normales_ids = array_values( array_diff( $talos_normales_ids, $talos_atrasados_ids ) );
 
 // ===== Métricas: KPI strip + desglose por categoría =====
 $talos_g_realizado = 0.0; $talos_g_pendiente = 0.0; $talos_g_atrasado = 0.0;

@@ -167,17 +167,25 @@ function talos_ajax_marcar_pagado() {
     $fecha_pago_str = date( 'j', $hoy ) . ' de ' . array( 'Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre' )[ (int) date( 'n', $hoy ) - 1 ] . ' del ' . date( 'Y', $hoy );
     $fecha_chip     = date( 'j', $hoy ) . '/' . array( 'ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic' )[ (int) date( 'n', $hoy ) - 1 ] . '/' . date( 'Y', $hoy );
 
-    $grupos = talos_ing_agrupar( $ids, false );
-    $correos_enviados = 0;
+    // Se marcan todos; el comprobante sale por empresa, así que un Ingreso sin
+    // Empresa (p. ej. el reembolso de la tarjeta adicional) queda pagado sin
+    // correo. Antes talos_ing_agrupar() lo descartaba y no se marcaba nada.
     $actualizados = array();
+    $sin_empresa  = array();
+    foreach ( $ids as $income_id ) {
+        if ( 'talos_income' !== get_post_type( $income_id ) ) continue;
+        update_field( 'income_paid', 1, $income_id );
+        update_field( 'income_payment_date', $fecha_ymd, $income_id );
+        $actualizados[] = $income_id;
+        if ( ! get_field( 'income_company', $income_id ) instanceof WP_Post ) {
+            $sin_empresa[] = $income_id;
+        }
+    }
+
+    $grupos = talos_ing_agrupar( $actualizados, false );
+    $correos_enviados = 0;
 
     foreach ( $grupos as $g ) {
-        foreach ( $g['ids'] as $income_id ) {
-            update_field( 'income_paid', 1, $income_id );
-            update_field( 'income_payment_date', $fecha_ymd, $income_id );
-            $actualizados[] = $income_id;
-        }
-
         $dest = talos_ing_destinatarios( $g['empresa_id'] );
         if ( ! $dest ) continue;
         list( $mes_str, $anio_str ) = talos_ing_mes_str( $g['mes'] );
@@ -192,6 +200,7 @@ function talos_ajax_marcar_pagado() {
         'ids'            => $actualizados,
         'fecha_chip'     => $fecha_chip,
         'correos_enviados' => $correos_enviados,
+        'sin_empresa'    => $sin_empresa,
     ) );
 }
 add_action( 'wp_ajax_talos_marcar_pagado', 'talos_ajax_marcar_pagado' );

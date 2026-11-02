@@ -41,6 +41,9 @@ $talos_normales_ids = get_posts( array(
     'order'          => 'ASC',
     'meta_query'     => array( array( 'key' => 'income_month', 'value' => array( $talos_inicio_mes, $talos_fin_mes ), 'compare' => 'BETWEEN', 'type' => 'NUMERIC' ) ),
 ) );
+// Viendo un mes pasado, lo no pagado de ese mes ya sale arriba como Atrasado:
+// sin esto aparecía dos veces y las métricas lo sumaban doble.
+$talos_normales_ids = array_values( array_diff( $talos_normales_ids, $talos_atrasados_ids ) );
 
 // ===== Métricas de la tira (igual fórmula que Dashboard) =====
 $talos_m_registrado = 0.0; $talos_m_pendiente = 0.0; $talos_m_atrasado = 0.0;
@@ -550,7 +553,9 @@ try{
         if (check) check.checked = false;
       });
       updateSelectionBar();
-      mostrarToast(res.data.correos_enviados + ' recibo(s) de pago enviado(s) correctamente.');
+      var avisoPago = res.data.correos_enviados + ' recibo(s) de pago enviado(s) correctamente.';
+      if (res.data.sin_empresa && res.data.sin_empresa.length) avisoPago += ' ' + res.data.sin_empresa.length + ' sin empresa: se marcaron pagados sin enviar recibo.';
+      mostrarToast(avisoPago);
     });
   });
 
