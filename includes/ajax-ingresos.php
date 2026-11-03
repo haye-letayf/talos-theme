@@ -389,3 +389,89 @@ function talos_ajax_eliminar_income() {
     wp_send_json_success( array( 'ids' => $eliminados ) );
 }
 add_action( 'wp_ajax_talos_eliminar_income', 'talos_ajax_eliminar_income' );
+
+/**
+ * Ficha de Ingreso: guarda el registro completo. Pagado y Enviado no van aquí:
+ * se registran con sus botones (recibo y nota salen por correo) y se quitan con
+ * talos_estado_income. La fecha de pago sí se corrige aquí, si ya está pagado.
+ * Subtotal y Total los recalcula talos-core en acf/save_post.
+ */
+function talos_ajax_guardar_income() {
+    talos_ing_verificar_nonce();
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array( 'mensaje' => 'No tienes permiso para editar ingresos.' ), 403 );
+    }
+    $id = isset( $_POST['income_id'] ) ? (int) $_POST['income_id'] : 0;
+    if ( ! $id || 'talos_income' !== get_post_type( $id ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Ingreso no válido.' ) );
+    }
+
+    $empresa_id  = isset( $_POST['income_company'] ) ? (int) $_POST['income_company'] : 0;
+    $servicio_id = isset( $_POST['income_service'] ) ? (int) $_POST['income_service'] : 0;
+    $descripcion = isset( $_POST['income_description'] ) ? sanitize_text_field( wp_unslash( $_POST['income_description'] ) ) : '';
+    // Fecha completa, no solo el mes: Generar Mes evita duplicados por contrato + fecha exacta.
+    $fecha       = DateTime::createFromFormat( '!Y-m-d', isset( $_POST['income_month'] ) ? sanitize_text_field( wp_unslash( $_POST['income_month'] ) ) : '' );
+    $monto_txt   = isset( $_POST['income_unit_price'] ) ? str_replace( array( '$', ',', ' ' ), '', wp_unslash( (string) $_POST['income_unit_price'] ) ) : '';
+    $doc         = ( isset( $_POST['income_doc_type'] ) && 'factura' === $_POST['income_doc_type'] ) ? 'factura' : 'nota_venta';
+
+    if ( $empresa_id && 'talos_company' !== get_post_type( $empresa_id ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Selecciona una empresa ya registrada.' ) );
+    }
+    if ( $servicio_id && 'talos_service_cat' !== get_post_type( $servicio_id ) ) {
+        $servicio_id = 0;
+    }
+    if ( '' === $descripcion ) {
+        wp_send_json_error( array( 'mensaje' => 'Escribe la descripción.' ) );
+    }
+    if ( ! $fecha ) {
+        wp_send_json_error( array( 'mensaje' => 'Elige la fecha de cobro.' ) );
+    }
+    if ( '' === $monto_txt || ! is_numeric( $monto_txt ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Escribe un monto válido (solo números).' ) );
+    }
+
+    update_field( 'income_company', $empresa_id ? $empresa_id : '', $id );
+    update_field( 'income_service', $servicio_id ? $servicio_id : '', $id );
+    update_field( 'income_description', $descripcion, $id );
+    update_field( 'income_month', $fecha->format( 'Ymd' ), $id );
+    update_field( 'income_unit_price', round( (float) $monto_txt, 2 ), $id );
+    update_field( 'income_doc_type', $doc, $id );
+    update_field( 'income_reminder_allowed', ! empty( $_POST['income_reminder_allowed'] ) ? 1 : 0, $id );
+
+    if ( get_field( 'income_paid', $id ) && ! empty( $_POST['income_payment_date'] ) ) {
+        $pago = DateTime::createFromFormat( '!Y-m-d', sanitize_text_field( wp_unslash( $_POST['income_payment_date'] ) ) );
+        if ( $pago ) {
+            update_field( 'income_payment_date', $pago->format( 'Ymd' ), $id );
+        }
+    }
+
+    do_action( 'acf/save_post', $id );
+    wp_send_json_success();
+}
+add_action( 'wp_ajax_talos_guardar_income', 'talos_ajax_guardar_income' );
+
+/**
+ * Ficha de Ingreso: quitar Enviado o Pagado (corregir un renglón equivocado).
+ * No manda ningún correo. Quitar Pagado borra también la fecha de pago.
+ */
+function talos_ajax_estado_income() {
+    talos_ing_verificar_nonce();
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array( 'mensaje' => 'No tienes permiso para editar ingresos.' ), 403 );
+    }
+    $id    = isset( $_POST['income_id'] ) ? (int) $_POST['income_id'] : 0;
+    $campo = isset( $_POST['campo'] ) ? sanitize_key( $_POST['campo'] ) : '';
+    if ( ! $id || 'talos_income' !== get_post_type( $id ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Ingreso no válido.' ) );
+    }
+    if ( 'enviado' === $campo ) {
+        update_field( 'income_sent', 0, $id );
+    } elseif ( 'pagado' === $campo ) {
+        update_field( 'income_paid', 0, $id );
+        update_field( 'income_payment_date', '', $id );
+    } else {
+        wp_send_json_error( array( 'mensaje' => 'Campo no permitido.' ) );
+    }
+    wp_send_json_success();
+}
+add_action( 'wp_ajax_talos_estado_income', 'talos_ajax_estado_income' );

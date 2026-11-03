@@ -237,3 +237,109 @@ function talos_ajax_importar_amex() {
     wp_send_json_success( $resultado );
 }
 add_action( 'wp_ajax_talos_importar_amex', 'talos_ajax_importar_amex' );
+
+function talos_gas_verificar_ficha() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array( 'mensaje' => 'No tienes permiso para editar gastos.' ), 403 );
+    }
+    if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'talos_gastos' ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Sesión inválida, recarga la página.' ), 403 );
+    }
+    $id = isset( $_POST['expense_id'] ) ? (int) $_POST['expense_id'] : 0;
+    if ( ! $id || 'talos_expense' !== get_post_type( $id ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Gasto no válido.' ) );
+    }
+    return $id;
+}
+
+/**
+ * Ficha de Gasto: guarda el registro completo. Con Precio unitario, el Monto
+ * lo calcula talos-core (Cantidad × Precio); sin él, manda el Monto capturado.
+ * Pagado no va aquí: "Registrar pago" usa el endpoint de la tabla (nómina
+ * incluida, con su recibo) y talos_estado_gasto lo quita. La fecha de pago sí
+ * se corrige aquí, si ya está pagado.
+ */
+function talos_ajax_guardar_gasto() {
+    $id = talos_gas_verificar_ficha();
+
+    $campo_cat    = function_exists( 'acf_get_field' ) ? acf_get_field( 'expense_category' ) : null;
+    $campo_subcat = function_exists( 'acf_get_field' ) ? acf_get_field( 'expense_subcategory' ) : null;
+    $campo_metodo = function_exists( 'acf_get_field' ) ? acf_get_field( 'expense_payment_method' ) : null;
+
+    $categoria    = isset( $_POST['expense_category'] ) ? sanitize_key( $_POST['expense_category'] ) : '';
+    $subcategoria = isset( $_POST['expense_subcategory'] ) ? sanitize_key( $_POST['expense_subcategory'] ) : '';
+    $metodo       = isset( $_POST['expense_payment_method'] ) ? sanitize_key( $_POST['expense_payment_method'] ) : '';
+    $proveedor    = isset( $_POST['expense_supplier'] ) ? sanitize_text_field( wp_unslash( $_POST['expense_supplier'] ) ) : '';
+    $descripcion  = isset( $_POST['expense_description'] ) ? sanitize_text_field( wp_unslash( $_POST['expense_description'] ) ) : '';
+    $miembro      = isset( $_POST['expense_team_member'] ) ? (int) $_POST['expense_team_member'] : 0;
+    $fecha        = DateTime::createFromFormat( '!Y-m-d', isset( $_POST['expense_period'] ) ? sanitize_text_field( wp_unslash( $_POST['expense_period'] ) ) : '' );
+    $limpiar      = function( $k ) { return isset( $_POST[ $k ] ) ? str_replace( array( '$', ',', ' ' ), '', wp_unslash( (string) $_POST[ $k ] ) ) : ''; };
+    $cantidad     = $limpiar( 'expense_quantity' );
+    $precio       = $limpiar( 'expense_unit_price' );
+    $monto        = $limpiar( 'expense_amount' );
+
+    if ( ! empty( $campo_cat['choices'] ) && ! isset( $campo_cat['choices'][ $categoria ] ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Elige una categoría válida.' ) );
+    }
+    if ( '' === $subcategoria || ( ! empty( $campo_subcat['choices'] ) && ! isset( $campo_subcat['choices'][ $subcategoria ] ) ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Elige una subcategoría válida.' ) );
+    }
+    if ( '' !== $metodo && ! empty( $campo_metodo['choices'] ) && ! isset( $campo_metodo['choices'][ $metodo ] ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Elige un método de pago válido.' ) );
+    }
+    if ( '' === $proveedor ) {
+        wp_send_json_error( array( 'mensaje' => 'Escribe el proveedor.' ) );
+    }
+    if ( ! $fecha ) {
+        wp_send_json_error( array( 'mensaje' => 'Elige la fecha.' ) );
+    }
+    if ( $miembro && 'talos_team' !== get_post_type( $miembro ) ) {
+        $miembro = 0;
+    }
+    if ( '' !== $precio ) {
+        if ( ! is_numeric( $precio ) || ( '' !== $cantidad && ! is_numeric( $cantidad ) ) ) {
+            wp_send_json_error( array( 'mensaje' => 'Cantidad y precio unitario deben ser números.' ) );
+        }
+    } elseif ( '' === $monto || ! is_numeric( $monto ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Escribe el monto (o un precio unitario).' ) );
+    }
+
+    update_field( 'expense_category', $categoria, $id );
+    update_field( 'expense_subcategory', $subcategoria, $id );
+    update_field( 'expense_supplier', $proveedor, $id );
+    update_field( 'expense_description', $descripcion, $id );
+    update_field( 'expense_team_member', $miembro ? $miembro : '', $id );
+    update_field( 'expense_period', $fecha->format( 'Ymd' ), $id );
+    update_field( 'expense_payment_method', $metodo, $id );
+    if ( '' !== $precio ) {
+        update_field( 'expense_quantity', '' === $cantidad ? 1 : round( (float) $cantidad, 4 ), $id );
+        update_field( 'expense_unit_price', round( (float) $precio, 2 ), $id );
+    } else {
+        // Monto directo: se vacía el precio para que talos-core no lo recalcule.
+        update_field( 'expense_unit_price', '', $id );
+        update_field( 'expense_amount', round( (float) $monto, 2 ), $id );
+    }
+
+    if ( get_field( 'expense_paid', $id ) && ! empty( $_POST['expense_payment_date'] ) ) {
+        $pago = DateTime::createFromFormat( '!Y-m-d', sanitize_text_field( wp_unslash( $_POST['expense_payment_date'] ) ) );
+        if ( $pago ) {
+            update_field( 'expense_payment_date', $pago->format( 'Ymd' ), $id );
+        }
+    }
+
+    do_action( 'acf/save_post', $id );
+    wp_send_json_success();
+}
+add_action( 'wp_ajax_talos_guardar_gasto', 'talos_ajax_guardar_gasto' );
+
+/**
+ * Ficha de Gasto: quitar Pagado (corregir un renglón equivocado). Borra la
+ * fecha de pago. En nómina, el IVA ya sumado y el recibo enviado se quedan.
+ */
+function talos_ajax_estado_gasto() {
+    $id = talos_gas_verificar_ficha();
+    update_field( 'expense_paid', 0, $id );
+    update_field( 'expense_payment_date', '', $id );
+    wp_send_json_success();
+}
+add_action( 'wp_ajax_talos_estado_gasto', 'talos_ajax_estado_gasto' );

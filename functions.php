@@ -14,6 +14,7 @@ require_once get_template_directory() . '/includes/ajax-servicios.php';
 require_once get_template_directory() . '/includes/ajax-equipo.php';
 require_once get_template_directory() . '/includes/ajax-generar-mes.php';
 require_once get_template_directory() . '/includes/ajax-facturas.php';
+require_once get_template_directory() . '/includes/fichas-registro.php';
 
 function talos_enqueue_assets() {
     $uri = get_template_directory_uri();

@@ -8,6 +8,13 @@
  *    muestra una sola columna "Monto" en vez de Cant./P. Unit./Total por separado.
  */
 
+// ===== ?ficha=ID: ficha completa del Gasto (fichas/ficha-gasto.php) =====
+$talos_ficha_id = isset( $_GET['ficha'] ) ? (int) $_GET['ficha'] : 0;
+if ( $talos_ficha_id && 'talos_expense' === get_post_type( $talos_ficha_id ) && current_user_can( 'manage_options' ) ) {
+    require get_template_directory() . '/fichas/ficha-gasto.php';
+    return;
+}
+
 $talos_mes_viendo   = talos_mes_activo();
 $talos_mes_hoy      = new DateTime( 'first day of this month' );
 $talos_meses_cortos = talos_meses_cortos();
@@ -243,7 +250,10 @@ get_header();
                   <button class="btn-pay" data-role="pay">Marcar Pagado</button>
                 <?php endif; ?>
               </td>
-              <td><button class="action-btn delete" data-role="delete" title="Eliminar (a la papelera)"><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg></button></td>
+              <td class="row-actions">
+                <a class="action-btn view" data-ficha href="<?php echo esc_url( talos_ficha_url( $id ) ); ?>" title="Ver ficha"><svg viewBox="0 0 24 24"><use href="#i-eye"/></svg></a>
+                <button class="action-btn delete" data-role="delete" title="Eliminar (a la papelera)"><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg></button>
+              </td>
             </tr>
         <?php endforeach; ?>
       </tbody>
@@ -672,5 +682,6 @@ try{
 </script>
 
 <?php talos_generar_mes_modal( $talos_mes_viendo ); ?>
+<?php talos_listado_recordar_estado( 'gastos' ); ?>
 
 <?php get_footer(); ?>

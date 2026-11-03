@@ -5,6 +5,13 @@
  * correos (Nota/Factura, Comprobante de Pago) vía includes/ajax-ingresos.php.
  */
 
+// ===== ?ficha=ID: ficha completa del Ingreso (fichas/ficha-ingreso.php) =====
+$talos_ficha_id = isset( $_GET['ficha'] ) ? (int) $_GET['ficha'] : 0;
+if ( $talos_ficha_id && 'talos_income' === get_post_type( $talos_ficha_id ) && current_user_can( 'manage_options' ) ) {
+    require get_template_directory() . '/fichas/ficha-ingreso.php';
+    return;
+}
+
 // ===== Mes que se está viendo: selector universal (topbar), ver talos_mes_activo() =====
 $talos_mes_viendo   = talos_mes_activo();
 $talos_mes_hoy      = new DateTime( 'first day of this month' );
@@ -239,7 +246,10 @@ get_header();
                   <span class="attach-muted">—</span>
                 <?php endif; ?>
               </td>
-              <td><button class="action-btn delete" data-role="delete" title="Eliminar (a la papelera)"><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg></button></td>
+              <td class="row-actions">
+                <a class="action-btn view" data-ficha href="<?php echo esc_url( talos_ficha_url( $id ) ); ?>" title="Ver ficha"><svg viewBox="0 0 24 24"><use href="#i-eye"/></svg></a>
+                <button class="action-btn delete" data-role="delete" title="Eliminar (a la papelera)"><svg viewBox="0 0 24 24"><use href="#i-trash"/></svg></button>
+              </td>
             </tr>
         <?php endforeach; ?>
       </tbody>
@@ -631,5 +641,6 @@ try{
 
 <?php talos_generar_mes_modal( $talos_mes_viendo ); ?>
 <?php talos_facturas_modal(); ?>
+<?php talos_listado_recordar_estado( 'ingresos' ); ?>
 
 <?php get_footer(); ?>
