@@ -299,15 +299,19 @@ get_header();
                 </div>
               </td>
               <td><?php echo esc_html( $empresa_post ? $empresa_post->post_title : '—' ); ?></td>
-              <td><?php if ( $correo ) : ?><a class="email-link" href="mailto:<?php echo esc_attr( $correo ); ?>"><?php echo esc_html( $correo ); ?></a><?php else : ?>—<?php endif; ?></td>
+              <td>
+                <?php if ( $correo ) : // Sin mailto: a los contactos no se les escribe desde aquí, solo se copia el correo ?>
+                  <div class="rfc-cell"><span><?php echo esc_html( $correo ); ?></span><button class="copy-btn" data-copy="<?php echo esc_attr( $correo ); ?>" data-copy-tipo="Correo" title="Copiar correo"><svg viewBox="0 0 24 24"><use href="#i-copy"/></svg></button></div>
+                <?php else : ?>—<?php endif; ?>
+              </td>
               <td>
                 <?php if ( $tel_oficina ) : ?>
-                  <div class="rfc-cell"><span><?php echo esc_html( $tel_oficina ); ?></span><button class="copy-btn" data-copy="<?php echo esc_attr( $tel_oficina ); ?>" title="Copiar teléfono"><svg viewBox="0 0 24 24"><use href="#i-copy"/></svg></button></div>
+                  <div class="rfc-cell"><span><?php echo esc_html( $tel_oficina ); ?></span><button class="copy-btn" data-copy="<?php echo esc_attr( $tel_oficina ); ?>" data-copy-tipo="Número" title="Copiar teléfono"><svg viewBox="0 0 24 24"><use href="#i-copy"/></svg></button></div>
                 <?php else : ?>—<?php endif; ?>
               </td>
               <td>
                 <?php if ( $tel_celular ) : ?>
-                  <div class="rfc-cell"><span><?php echo esc_html( $tel_celular ); ?></span><button class="copy-btn" data-copy="<?php echo esc_attr( $tel_celular ); ?>" title="Copiar WhatsApp"><svg viewBox="0 0 24 24"><use href="#i-copy"/></svg></button></div>
+                  <div class="rfc-cell"><span><?php echo esc_html( $tel_celular ); ?></span><button class="copy-btn" data-copy="<?php echo esc_attr( $tel_celular ); ?>" data-copy-tipo="Número" title="Copiar WhatsApp"><svg viewBox="0 0 24 24"><use href="#i-copy"/></svg></button></div>
                 <?php else : ?>—<?php endif; ?>
               </td>
               <td><?php if ( $clase ) : ?><span class="pill class-<?php echo esc_attr( $clase ); ?>"><?php echo esc_html( $clase_label ); ?></span><?php else : ?>—<?php endif; ?></td>
@@ -458,7 +462,7 @@ try{
       var valor = btn.getAttribute('data-copy');
       var hacerFeedback = function(){
         btn.classList.add('copied');
-        mostrarToastContactos('Número "' + valor + '" copiado al portapapeles');
+        mostrarToastContactos((btn.getAttribute('data-copy-tipo') || 'Texto') + ' "' + valor + '" copiado al portapapeles');
         setTimeout(function(){ btn.classList.remove('copied'); }, 1500);
       };
       if (navigator.clipboard && navigator.clipboard.writeText){
