@@ -146,6 +146,7 @@ get_header();
   </div>
   <div class="head-controls">
     <button class="btn-secondary" id="btnAmex"><svg viewBox="0 0 24 24"><use href="#i-upload"/></svg>Subir Movimientos AMEX</button>
+    <?php talos_generar_mes_boton(); ?>
     <button class="btn-primary" id="btnNuevoGasto"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg>Nuevo Gasto</button>
   </div>
 </div>
@@ -669,5 +670,7 @@ try{
   });
 }catch(e){ console.error(e); }
 </script>
+
+<?php talos_generar_mes_modal( $talos_mes_viendo ); ?>
 
 <?php get_footer(); ?>

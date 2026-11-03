@@ -129,6 +129,7 @@ get_header();
     <p class="page-sub">Facturación y notas de venta por empresa</p>
   </div>
   <div class="head-controls">
+    <?php talos_generar_mes_boton(); ?>
     <button class="btn-primary" id="btnNuevoIngreso"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg>Nuevo Ingreso</button>
   </div>
 </div>
@@ -678,5 +679,7 @@ try{
   });
 }catch(e){ console.error(e); }
 </script>
+
+<?php talos_generar_mes_modal( $talos_mes_viendo ); ?>
 
 <?php get_footer(); ?>
