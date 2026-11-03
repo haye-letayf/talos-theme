@@ -33,7 +33,7 @@ function talos_ing_destinatarios( $company_id ) {
     return function_exists( 'talos_destinatarios_facturacion' ) ? talos_destinatarios_facturacion( $company_id ) : null;
 }
 
-function talos_ing_email_nota_factura( $empresa_nombre, $contacto_nombre, $mes_str, $anio_str, $es_factura, $items, $subtotal, $iva, $total, $tiene_adjuntos = false ) {
+function talos_ing_email_nota_factura( $empresa_nombre, $contacto_nombre, $mes_str, $anio_str, $es_factura, $items, $subtotal, $iva, $total, $tiene_adjuntos = false, $facturado_a = '' ) {
     $subject_label = $es_factura ? 'Factura Oficial' : 'Nota de Venta';
     $disclaimer = $es_factura
         ? ( $tiene_adjuntos
@@ -57,6 +57,7 @@ function talos_ing_email_nota_factura( $empresa_nombre, $contacto_nombre, $mes_s
         . '<div style="text-align:center;margin-bottom:30px;"><img src="https://1124.com.mx/main/wp-content/uploads/2025/08/once24-main-logo-horizontal-bicolor.png" alt="Once24" style="max-width:250px;"></div>'
         . '<p style="font-size:16px;">¡Hola, <strong>' . esc_html( $contacto_nombre ) . '</strong>!</p>'
         . '<p style="font-size:16px;">A continuación te compartimos el desglose correspondiente a los Servicios Digitales de <strong>' . esc_html( $mes_str ) . '</strong> del <strong>' . esc_html( $anio_str ) . '</strong>.</p>'
+        . ( $es_factura && $facturado_a ? '<p style="font-size:14px;color:#7f8c8d;">Facturado a: <strong style="color:#2c3e50;">' . esc_html( $facturado_a ) . '</strong></p>' : '' )
         . $tabla
         . '<div style="text-align:right;margin-top:15px;">Subtotal: ' . talos_ing_fmt( $subtotal ) . '<br>IVA: ' . talos_ing_fmt( $iva ) . '<br><span style="font-size:32px;font-weight:bold;color:#39BF81;">' . talos_ing_fmt( $total ) . '</span></div>'
         . $bloque_pago
@@ -173,7 +174,7 @@ function talos_ajax_marcar_pagado() {
         $iva = $g['total'] - $g['subtotal'];
         $html = talos_ing_email_comprobante( $dest['nombre'], $mes_str, $anio_str, $g['items'], $g['subtotal'], $iva, $g['total'], $fecha_pago_str );
         $headers = array( 'Content-Type: text/html; charset=UTF-8', 'Bcc: facturasonce24@gmail.com' );
-        $ok = wp_mail( $dest['correos'], 'Comprobante de Pago Once24 | ' . $g['empresa'], $html, $headers );
+        $ok = wp_mail( $dest['correos'], 'Comprobante de Pago Once24', $html, $headers );
         if ( $ok ) $correos_enviados++;
     }
 
@@ -222,10 +223,15 @@ function talos_ajax_enviar_notas() {
         }
         list( $mes_str, $anio_str ) = talos_ing_mes_str( $g['mes'] );
         $iva = $g['total'] - $g['subtotal'];
-        $html = talos_ing_email_nota_factura( $g['empresa'], $dest['nombre'], $mes_str, $anio_str, $es_factura, $g['items'], $g['subtotal'], $iva, $g['total'], $es_factura );
+        // El asunto ya no lleva el nombre comercial (las franquicias REMAX van en Talos
+        // solo con su apellido); la razón social y el RFC van en el cuerpo de la factura.
+        $facturado_a = trim( (string) get_field( 'company_legal_name', $g['empresa_id'] ) );
+        $rfc_emp     = trim( (string) get_field( 'company_rfc', $g['empresa_id'] ) );
+        if ( $facturado_a && $rfc_emp ) $facturado_a .= ' · RFC ' . $rfc_emp;
+        $html = talos_ing_email_nota_factura( $g['empresa'], $dest['nombre'], $mes_str, $anio_str, $es_factura, $g['items'], $g['subtotal'], $iva, $g['total'], $es_factura, $facturado_a );
         $subject_label = $es_factura ? 'Factura Oficial' : 'Nota de Venta';
         $headers = array( 'Content-Type: text/html; charset=UTF-8', 'Bcc: facturasonce24@gmail.com' );
-        $ok = wp_mail( $dest['correos'], $subject_label . ' Once24 | ' . $g['empresa'], $html, $headers, $adjuntos );
+        $ok = wp_mail( $dest['correos'], $subject_label . ' Once24', $html, $headers, $adjuntos );
         if ( $ok ) {
             $correos_enviados++;
             foreach ( $g['ids'] as $income_id ) {

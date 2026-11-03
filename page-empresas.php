@@ -298,7 +298,7 @@ get_header();
   <div class="page-head ficha-modo-vista">
     <div>
       <h1 class="page-title"><?php echo esc_html( $f['nombre'] ); ?></h1>
-      <p class="page-sub">Ficha de Empresa</p>
+      <p class="page-sub"><?php echo ( $f['company_legal_name'] && 0 !== strcasecmp( trim( $f['company_legal_name'] ), trim( $f['nombre'] ) ) ) ? esc_html( $f['company_legal_name'] ) : 'Ficha de Empresa'; ?></p>
     </div>
     <?php if ( current_user_can( 'manage_options' ) ) : ?>
     <div class="head-controls">
@@ -313,7 +313,7 @@ get_header();
     <div class="ficha-section-label">Clasificación</div>
     <div class="data-grid">
       <div class="data-field">
-        <label>Nombre</label>
+        <label>Nombre comercial</label>
         <div class="view-value"><?php echo esc_html( $f['nombre'] ); ?></div>
         <input type="text" name="nombre" value="<?php echo esc_attr( $f['nombre'] ); ?>">
       </div>
@@ -660,7 +660,7 @@ get_header();
 </div>
 
 <div class="filter-bar">
-  <div class="filter-search"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg><input type="text" id="buscarEmpresa" placeholder="Buscar por nombre…"></div>
+  <div class="filter-search"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg><input type="text" id="buscarEmpresa" placeholder="Buscar por nombre o razón social…"></div>
   <div class="seg" data-filter-group="estatus">
     <button class="active" data-filter="todas">Todas</button>
     <button data-filter="active">Activas</button>
@@ -695,6 +695,8 @@ get_header();
         <?php endif; ?>
         <?php foreach ( $talos_empresas_ids as $id ) :
             $nombre   = get_the_title( $id );
+            $razon    = trim( (string) get_field( 'company_legal_name', $id ) );
+            $razon    = ( '' !== $razon && 0 !== strcasecmp( $razon, trim( $nombre ) ) ) ? $razon : '';
             $clase    = get_field( 'company_class', $id );
             $estatus  = get_field( 'company_status', $id );
             $rfc      = get_field( 'company_rfc', $id );
@@ -708,7 +710,7 @@ get_header();
             $estatus_label = $estatus ? ( $talos_estatus_labels[ $estatus ] ?? $estatus ) : '';
             $estado_label  = $estado ? ( $talos_estados_mx[ $estado ] ?? $estado ) : '';
             ?>
-            <tr data-estatus="<?php echo esc_attr( $estatus ); ?>" data-clase="<?php echo esc_attr( $clase ); ?>" data-nombre="<?php echo esc_attr( $nombre ); ?>"
+            <tr data-estatus="<?php echo esc_attr( $estatus ); ?>" data-clase="<?php echo esc_attr( $clase ); ?>" data-nombre="<?php echo esc_attr( trim( $nombre . ' ' . $razon ) ); ?>"
                 data-sort-clase="<?php echo esc_attr( $clase_label ); ?>"
                 data-sort-estatus="<?php echo esc_attr( $estatus_label ); ?>"
                 data-sort-am="<?php echo esc_attr( $am_post ? $am_post->post_title : '' ); ?>"
@@ -719,6 +721,7 @@ get_header();
                   <div class="company-logo"><?php echo esc_html( talos_iniciales( $nombre ) ); ?></div>
                   <div>
                     <?php echo esc_html( $nombre ); ?>
+                    <?php if ( $razon ) : ?><span class="company-sub"><?php echo esc_html( $razon ); ?></span><?php endif; ?>
                     <?php if ( $es_subcuenta ) : ?><span class="company-sub">↳ Subcuenta de <?php echo esc_html( get_the_title( $padre_id ) ); ?></span><?php endif; ?>
                     <?php if ( $dominio ) : ?><span class="company-sub"><?php echo esc_html( $dominio ); ?></span><?php endif; ?>
                   </div>
@@ -756,7 +759,7 @@ get_header();
     <h4>Nueva Empresa</h4>
     <p class="modal-sub">Captura lo esencial — el resto lo completas justo después, en la ficha.</p>
     <div class="form-field">
-      <label for="campoNombreEmpresa">Nombre</label>
+      <label for="campoNombreEmpresa">Nombre comercial</label>
       <input type="text" id="campoNombreEmpresa" placeholder="Ej. Inmobiliaria Amanecer">
     </div>
     <div class="form-row">
