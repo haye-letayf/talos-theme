@@ -13,6 +13,13 @@
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+// Respaldo por si el tema llega antes que talos-core 2.19.1 (que sirve el logo).
+if ( ! function_exists( 'talos_logo_correo_url' ) ) {
+    function talos_logo_correo_url() {
+        return 'https://1124.com.mx/a/wp-content/uploads/2026/05/once24-main-logo-horizontal-bicolor.png';
+    }
+}
+
 function talos_ing_fmt( $n ) {
     return '$' . number_format( (float) $n, 0, '.', ',' ) . ' MXN';
 }
@@ -54,7 +61,7 @@ function talos_ing_email_nota_factura( $empresa_nombre, $contacto_nombre, $mes_s
     $bloque_pago = '<div style="background-color:#f4f6f9;border-left:5px solid #022873;padding:15px 20px;margin:30px 0;"><p style="margin-top:0;color:#022873;"><strong>Para Depósitos o Transferencia:</strong></p>' . $datos_banco . '<p style="margin:5px 0;background-color:#39BF81;color:white;display:inline-block;padding:2px 8px;border-radius:4px;"><strong>Concepto:</strong> ' . esc_html( $empresa_nombre ) . '</p></div>';
 
     return '<div style="font-family:Arial, sans-serif;color:#2c3e50;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e1e1e1;border-radius:8px;">'
-        . '<div style="text-align:center;margin-bottom:30px;"><img src="https://1124.com.mx/main/wp-content/uploads/2025/08/once24-main-logo-horizontal-bicolor.png" alt="Once24" style="max-width:250px;"></div>'
+        . '<div style="text-align:center;margin-bottom:30px;"><img src="' . esc_url( talos_logo_correo_url() ) . '" alt="Once24" style="max-width:250px;"></div>'
         . '<p style="font-size:16px;">¡Hola, <strong>' . esc_html( $contacto_nombre ) . '</strong>!</p>'
         . '<p style="font-size:16px;">A continuación te compartimos el desglose correspondiente a los Servicios Digitales de <strong>' . esc_html( $mes_str ) . '</strong> del <strong>' . esc_html( $anio_str ) . '</strong>.</p>'
         . ( $es_factura && $facturado_a ? '<p style="font-size:14px;color:#7f8c8d;">Facturado a: <strong style="color:#2c3e50;">' . esc_html( $facturado_a ) . '</strong></p>' : '' )
@@ -80,7 +87,7 @@ function talos_ing_email_comprobante( $contacto_nombre, $mes_str, $anio_str, $it
         . '<span style="display:inline-block;width:120px;color:#7f8c8d;">IVA (' . ( $tiene_iva ? '16' : '0' ) . '%):</span> <strong>' . ( $tiene_iva ? talos_ing_fmt( $iva ) : '$0 MXN' ) . '</strong></div>';
 
     return '<div style="font-family:Arial, sans-serif;color:#2c3e50;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e1e1e1;border-radius:8px;">'
-        . '<div style="text-align:center;margin-bottom:25px;"><img src="https://1124.com.mx/main/wp-content/uploads/2025/08/once24-main-logo-horizontal-bicolor.png" alt="Once24" style="max-width:200px;"></div>'
+        . '<div style="text-align:center;margin-bottom:25px;"><img src="' . esc_url( talos_logo_correo_url() ) . '" alt="Once24" style="max-width:200px;"></div>'
         . '<div style="background-color:#eafaf1;border-left:5px solid #39BF81;padding:15px;margin-bottom:25px;"><h3 style="margin:0;color:#39BF81;text-align:center;">¡Pago Recibido Exitosamente! ✅</h3></div>'
         . '<p style="font-size:16px;">Hola <strong>' . esc_html( $contacto_nombre ) . '</strong>,</p>'
         . '<p style="font-size:16px;">Confirmamos de recibido tu pago correspondiente a los Servicios Digitales de <strong>' . esc_html( $mes_str ) . '</strong> del <strong>' . esc_html( $anio_str ) . '</strong>.</p>'
