@@ -241,6 +241,31 @@ if ( $talos_ficha_id ) {
     // Parte del catálogo trae la frecuencia con la etiqueta vieja ("Mensual",
     // "Único", "Hora") en vez del slug; se traduce al slug del select.
     $talos_frecuencia_viejas = array( 'único' => 'pago_unico', 'unico' => 'pago_unico', 'hora' => 'por_hora' );
+    // ===== Facturas: meses con CFDI subido + meses (desde TALOS_PRIMER_MES_FACTURAS) con conceptos tipo Factura =====
+    $talos_ficha_facturas = array();
+    if ( function_exists( 'talos_facturas_resumen' ) && current_user_can( 'manage_options' ) ) {
+        $meses_fac = array();
+        $ids_fac = get_posts( array( 'post_type' => 'talos_invoice', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids',
+            'meta_query' => array( array( 'key' => 'invoice_company', 'value' => $talos_ficha_id ) ) ) );
+        foreach ( $ids_fac as $fid ) {
+            $meses_fac[ talos_factura_ym( get_field( 'invoice_month', $fid ) ) ] = true;
+        }
+        $ids_conceptos = get_posts( array( 'post_type' => 'talos_income', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids',
+            'meta_query' => array(
+                'relation' => 'AND',
+                array( 'key' => 'income_company', 'value' => $talos_ficha_id ),
+                array( 'key' => 'income_doc_type', 'value' => 'factura' ),
+                array( 'key' => 'income_month', 'value' => str_replace( '-', '', TALOS_PRIMER_MES_FACTURAS ) . '01', 'compare' => '>=', 'type' => 'NUMERIC' ),
+            ) ) );
+        foreach ( $ids_conceptos as $iid ) {
+            $meses_fac[ talos_factura_ym( get_field( 'income_month', $iid ) ) ] = true;
+        }
+        krsort( $meses_fac );
+        foreach ( array_keys( $meses_fac ) as $ym ) {
+            $talos_ficha_facturas[ $ym ] = talos_facturas_resumen( $talos_ficha_id, $ym );
+        }
+    }
+
     $talos_catalogo_autollenado = array();
     foreach ( $talos_catalogo_servicios as $svc ) {
         $frecuencia = mb_strtolower( trim( (string) get_field( 'service_ref_frequency', $svc->ID ) ) );
@@ -471,6 +496,55 @@ get_header();
       </div>
     <?php endif; ?>
   </div>
+
+  <?php if ( current_user_can( 'manage_options' ) && function_exists( 'talos_facturas_resumen' ) ) :
+      $talos_estado_factura = array(
+          'completa'      => array( 'status-active', 'Completa' ),
+          'no_cuadra'     => array( 'status-inactive', 'No cuadra' ),
+          'falta'         => array( 'status-inactive', 'Falta' ),
+          'sin_conceptos' => array( 'status-active', 'Sin conceptos' ),
+      ); ?>
+  <div class="ficha-card">
+    <div class="ficha-section-label">Facturas</div>
+    <?php if ( empty( $talos_ficha_facturas ) ) : ?>
+      <p class="field-hint">Sin facturas subidas ni conceptos con factura desde <?php echo esc_html( talos_factura_mes_texto( TALOS_PRIMER_MES_FACTURAS ) ); ?>.</p>
+    <?php else : ?>
+      <div class="table-card" style="box-shadow:none;">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>Mes</th><th>Facturas</th><th class="num">Conceptos</th><th class="num">Facturado</th><th>Estado</th><th></th></tr>
+            </thead>
+            <tbody>
+              <?php foreach ( $talos_ficha_facturas as $ym => $r ) : $e = $talos_estado_factura[ $r['estado'] ]; ?>
+                <tr>
+                  <td><?php echo esc_html( ucfirst( talos_factura_mes_texto( $ym ) ) ); ?></td>
+                  <td>
+                    <?php if ( empty( $r['facturas'] ) ) : ?>—<?php endif; ?>
+                    <?php foreach ( $r['facturas'] as $fac ) : ?>
+                      <div><strong><?php echo esc_html( $fac['folio'] ?: 'Sin folio' ); ?></strong>
+                        <?php if ( $fac['pdf'] ) : ?> · <a href="<?php echo esc_url( $fac['pdf'] ); ?>" target="_blank" rel="noopener">PDF</a><?php endif; ?>
+                        <?php if ( $fac['xml'] ) : ?> · <a href="<?php echo esc_url( $fac['xml'] ); ?>">XML</a><?php endif; ?>
+                      </div>
+                    <?php endforeach; ?>
+                  </td>
+                  <td class="num tabular"><?php echo esc_html( talos_fmt_mxn( $r['total_conceptos'] ) ); ?></td>
+                  <td class="num tabular"><?php echo esc_html( talos_fmt_mxn( $r['facturado'] ) ); ?></td>
+                  <td><span class="pill <?php echo esc_attr( $e[0] ); ?>"><span class="pill-dot"></span><?php echo esc_html( $e[1] ); ?></span></td>
+                  <td><button type="button" class="action-btn edit" data-role="ver-facturas" data-mes="<?php echo esc_attr( substr( $ym, 0, 4 ) . '-' . substr( $ym, 4, 2 ) ); ?>" title="Ver o subir facturas de este mes"><svg viewBox="0 0 24 24"><use href="#i-paperclip"/></svg></button></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <?php endif; ?>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap;">
+      <p class="field-hint" style="margin:0;">Una factura (PDF + XML) puede cubrir varios conceptos del mes. Sin su factura, "Enviar Notas/Facturas" no envía la de esta empresa.</p>
+      <button type="button" class="btn-secondary" id="btnSubirFacturaEmpresa"><svg viewBox="0 0 24 24"><use href="#i-upload"/></svg>Subir factura</button>
+    </div>
+  </div>
+  <?php endif; ?>
 
   <?php if ( current_user_can( 'manage_options' ) ) : ?>
   <div class="modal-overlay" id="modalContrato">
@@ -811,6 +885,17 @@ try{
     }).catch(function(){ btn.disabled = false; mostrarToastEmpresas('No se pudo guardar el servicio.'); });
   });
 
+  // ===== Facturas (modal compartido, includes/ajax-facturas.php) =====
+  if (document.getElementById('btnSubirFacturaEmpresa')){
+    var facturasCambiaron = false;
+    var abrirFacturas = function(mes){ window.talosFacturas.abrir(<?php echo (int) $talos_ficha_id; ?>, <?php echo wp_json_encode( $f['nombre'] ); ?>, mes, true); };
+    document.getElementById('btnSubirFacturaEmpresa').addEventListener('click', function(){ abrirFacturas('<?php echo esc_js( talos_mes_activo()->format( 'Y-m' ) ); ?>'); });
+    document.querySelectorAll('[data-role="ver-facturas"]').forEach(function(b){ b.addEventListener('click', function(){ abrirFacturas(b.getAttribute('data-mes')); }); });
+    document.addEventListener('talos:facturas', function(){ facturasCambiaron = true; });
+    // El modal se pinta al final de la página: delegado en document.
+    document.addEventListener('click', function(e){ if (facturasCambiaron && e.target.closest('#modalFacturas [data-close-modal]')) window.location.reload(); });
+  }
+
   document.getElementById('btnEditarFicha').addEventListener('click', function(){
     document.body.classList.add('editando');
   });
@@ -937,5 +1022,7 @@ try{
   <?php endif; ?>
 }catch(e){ console.error(e); }
 </script>
+
+<?php if ( $talos_ficha_id ) talos_facturas_modal(); ?>
 
 <?php get_footer(); ?>

@@ -6,9 +6,8 @@
  * enviarComprobanteMasivo en talos-1.0-legacy-apps-script.gs) — mismo copy, mismos
  * datos bancarios, mismo WhatsApp. Dos cambios intencionales frente al original:
  * 1) el PDF/XML de la factura ya no se busca en una carpeta de Drive por nombre de
- *    cliente — se sube directo a cada Ingreso (income_invoice_pdf/income_invoice_xml)
- *    y se adjunta de verdad solo si ya están ambos; si falta alguno, el disclaimer
- *    avisa que se compartirán después en vez de prometer un adjunto que no va.
+ *    cliente: es una Factura (talos_invoice, talos-core) de la Empresa en ese mes.
+ *    Si un grupo es Factura y no tiene su CFDI, no se envía y se avisa.
  * 2) el "link de pago" (PayPal) del Sheet original no tiene campo ACF equivalente,
  *    así que siempre se muestra el bloque de datos bancarios.
  */
@@ -32,20 +31,6 @@ function talos_ing_mes_str( $ymd ) {
  */
 function talos_ing_destinatarios( $company_id ) {
     return function_exists( 'talos_destinatarios_facturacion' ) ? talos_destinatarios_facturacion( $company_id ) : null;
-}
-
-/**
- * Convierte una URL dentro de /wp-content/uploads/ a su ruta local en disco,
- * para poder pasarla a wp_mail()'s attachments (que pide rutas, no URLs).
- */
-function talos_ing_url_a_path( $url ) {
-    if ( empty( $url ) ) return null;
-    $uploads = wp_upload_dir();
-    if ( 0 === strpos( $url, $uploads['baseurl'] ) ) {
-        $path = $uploads['basedir'] . substr( $url, strlen( $uploads['baseurl'] ) );
-        return file_exists( $path ) ? $path : null;
-    }
-    return null;
 }
 
 function talos_ing_email_nota_factura( $empresa_nombre, $contacto_nombre, $mes_str, $anio_str, $es_factura, $items, $subtotal, $iva, $total, $tiene_adjuntos = false ) {
@@ -106,7 +91,8 @@ function talos_ing_email_comprobante( $contacto_nombre, $mes_str, $anio_str, $it
 
 /**
  * Agrupa IDs de talos_income por llave (empresa+mes[+doc]) para enviar un solo correo
- * por grupo, igual que el Sheet original agrupaba por cliente+mes(+docType).
+ * por grupo, igual que el Sheet original agrupaba por cliente+mes(+docType). El mes
+ * es AAAAMM: dos cobros del mismo cliente en días distintos del mes van juntos.
  */
 function talos_ing_agrupar( $income_ids, $incluir_doc_type ) {
     $grupos = array();
@@ -115,7 +101,7 @@ function talos_ing_agrupar( $income_ids, $incluir_doc_type ) {
         if ( ! $empresa instanceof WP_Post ) continue;
         $mes = get_field( 'income_month', $income_id );
         $doc = get_field( 'income_doc_type', $income_id );
-        $llave = $empresa->ID . '_' . $mes . ( $incluir_doc_type ? '_' . $doc : '' );
+        $llave = $empresa->ID . '_' . substr( preg_replace( '/\D/', '', (string) $mes ), 0, 6 ) . ( $incluir_doc_type ? '_' . $doc : '' );
         if ( ! isset( $grupos[ $llave ] ) ) {
             $grupos[ $llave ] = array(
                 'empresa_id' => $empresa->ID,
@@ -126,7 +112,6 @@ function talos_ing_agrupar( $income_ids, $incluir_doc_type ) {
                 'items'      => array(),
                 'subtotal'   => 0.0,
                 'total'      => 0.0,
-                'adjuntos'   => array(),
             );
         }
         $grupos[ $llave ]['ids'][]   = $income_id;
@@ -136,10 +121,6 @@ function talos_ing_agrupar( $income_ids, $incluir_doc_type ) {
         );
         $grupos[ $llave ]['subtotal'] += (float) get_field( 'income_subtotal', $income_id );
         $grupos[ $llave ]['total']    += (float) get_field( 'income_total', $income_id );
-        $pdf_path = talos_ing_url_a_path( get_field( 'income_invoice_pdf', $income_id ) );
-        $xml_path = talos_ing_url_a_path( get_field( 'income_invoice_xml', $income_id ) );
-        if ( $pdf_path ) $grupos[ $llave ]['adjuntos'][] = $pdf_path;
-        if ( $xml_path ) $grupos[ $llave ]['adjuntos'][] = $xml_path;
     }
     return $grupos;
 }
@@ -221,22 +202,29 @@ function talos_ajax_enviar_notas() {
     $correos_enviados = 0;
     $actualizados = array();
     $sin_contacto = array();
+    $sin_factura  = array();
 
     foreach ( $grupos as $g ) {
+        $es_factura = ( 'factura' === $g['doc'] );
+        // Una Factura sin su CFDI (PDF + XML) no sale: se avisa y queda sin enviar.
+        $adjuntos = array();
+        if ( $es_factura ) {
+            $adjuntos = function_exists( 'talos_facturas_adjuntos' ) ? talos_facturas_adjuntos( talos_facturas_de( $g['empresa_id'], $g['mes'] ) ) : array();
+            if ( count( $adjuntos ) < 2 ) {
+                $sin_factura[] = $g['empresa'];
+                continue;
+            }
+        }
         $dest = talos_ing_destinatarios( $g['empresa_id'] );
         if ( ! $dest ) {
             $sin_contacto[] = $g['empresa'];
             continue;
         }
         list( $mes_str, $anio_str ) = talos_ing_mes_str( $g['mes'] );
-        $es_factura = ( 'factura' === $g['doc'] );
         $iva = $g['total'] - $g['subtotal'];
-        // Solo se promete el adjunto si de verdad hay PDF + XML listos para los ingresos de este grupo.
-        $tiene_adjuntos_completos = $es_factura && count( $g['adjuntos'] ) >= 2 * count( $g['ids'] );
-        $html = talos_ing_email_nota_factura( $g['empresa'], $dest['nombre'], $mes_str, $anio_str, $es_factura, $g['items'], $g['subtotal'], $iva, $g['total'], $tiene_adjuntos_completos );
+        $html = talos_ing_email_nota_factura( $g['empresa'], $dest['nombre'], $mes_str, $anio_str, $es_factura, $g['items'], $g['subtotal'], $iva, $g['total'], $es_factura );
         $subject_label = $es_factura ? 'Factura Oficial' : 'Nota de Venta';
         $headers = array( 'Content-Type: text/html; charset=UTF-8', 'Bcc: facturasonce24@gmail.com' );
-        $adjuntos = $tiene_adjuntos_completos ? $g['adjuntos'] : array();
         $ok = wp_mail( $dest['correos'], $subject_label . ' Once24 | ' . $g['empresa'], $html, $headers, $adjuntos );
         if ( $ok ) {
             $correos_enviados++;
@@ -251,6 +239,7 @@ function talos_ajax_enviar_notas() {
         'ids'              => $actualizados,
         'correos_enviados' => $correos_enviados,
         'sin_contacto'     => $sin_contacto,
+        'sin_factura'      => $sin_factura,
     ) );
 }
 add_action( 'wp_ajax_talos_enviar_notas', 'talos_ajax_enviar_notas' );
@@ -362,47 +351,6 @@ function talos_ajax_actualizar_campo_income() {
 }
 add_action( 'wp_ajax_talos_actualizar_campo_income', 'talos_ajax_actualizar_campo_income' );
 
-/**
- * Sube el PDF o el XML de una Factura y lo guarda en income_invoice_pdf/income_invoice_xml.
- */
-function talos_ajax_subir_factura_archivo() {
-    talos_ing_verificar_nonce();
-    $income_id = isset( $_POST['income_id'] ) ? (int) $_POST['income_id'] : 0;
-    $tipo      = isset( $_POST['tipo'] ) ? sanitize_key( $_POST['tipo'] ) : '';
-
-    if ( ! $income_id || 'talos_income' !== get_post_type( $income_id ) ) {
-        wp_send_json_error( array( 'mensaje' => 'Ingreso no válido.' ) );
-    }
-    if ( ! in_array( $tipo, array( 'pdf', 'xml' ), true ) || empty( $_FILES['archivo'] ) ) {
-        wp_send_json_error( array( 'mensaje' => 'Archivo no válido.' ) );
-    }
-
-    $extensiones_por_tipo = array( 'pdf' => 'pdf', 'xml' => 'xml' );
-    $ext = strtolower( pathinfo( $_FILES['archivo']['name'], PATHINFO_EXTENSION ) );
-    if ( $ext !== $extensiones_por_tipo[ $tipo ] ) {
-        wp_send_json_error( array( 'mensaje' => 'El archivo debe tener extensión .' . $extensiones_por_tipo[ $tipo ] ) );
-    }
-
-    require_once ABSPATH . 'wp-admin/includes/file.php';
-    $subido = wp_handle_upload( $_FILES['archivo'], array( 'test_form' => false ) );
-    if ( isset( $subido['error'] ) ) {
-        wp_send_json_error( array( 'mensaje' => $subido['error'] ) );
-    }
-
-    $campo = ( 'pdf' === $tipo ) ? 'income_invoice_pdf' : 'income_invoice_xml';
-    update_field( $campo, $subido['url'], $income_id );
-
-    $tiene_pdf = (bool) get_field( 'income_invoice_pdf', $income_id );
-    $tiene_xml = (bool) get_field( 'income_invoice_xml', $income_id );
-
-    wp_send_json_success( array(
-        'nombre'  => basename( $subido['file'] ),
-        'listos'  => ( $tiene_pdf ? 1 : 0 ) + ( $tiene_xml ? 1 : 0 ),
-        'tiene_pdf' => $tiene_pdf,
-        'tiene_xml' => $tiene_xml,
-    ) );
-}
-add_action( 'wp_ajax_talos_subir_factura_archivo', 'talos_ajax_subir_factura_archivo' );
 
 /**
  * Elimina (mueve a la papelera de WordPress, NO borrado permanente) uno o

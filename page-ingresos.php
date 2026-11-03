@@ -110,10 +110,7 @@ get_header();
   .attach-btn{display:flex;align-items:center;gap:5px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);border-radius:7px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;}
   .attach-btn svg{width:13px;height:13px;}
   .attach-btn.complete{border-color:var(--success);color:var(--success);}
-  .factura-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;}
-  .factura-row:first-child{padding-top:0;}
-  .factura-estado{font-size:12px;color:var(--text-muted);}
-  .factura-estado.listo{color:var(--success);font-weight:700;}
+  .attach-btn[hidden],.attach-muted[hidden]{display:none!important;}
   .selection-bar{display:none;align-items:center;gap:10px;background:var(--accent-soft);color:var(--accent);border-radius:9px;padding:7px 12px;font-size:12.5px;font-weight:700;}
   .selection-bar.show{display:flex;}
   .btn-send{display:flex;align-items:center;gap:7px;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;}
@@ -227,12 +224,17 @@ get_header();
                 <?php endif; ?>
               </td>
               <td>
-                <?php if ( $es_factura ) :
-                    $tiene_pdf = (bool) get_field( 'income_invoice_pdf', $id );
-                    $tiene_xml = (bool) get_field( 'income_invoice_xml', $id );
-                    $listos = ( $tiene_pdf ? 1 : 0 ) + ( $tiene_xml ? 1 : 0 );
+                <?php if ( $empresa instanceof WP_Post && current_user_can( 'manage_options' ) ) :
+                    // La factura es de la Empresa en el mes (talos_invoice), no de cada concepto.
+                    $ym_fila = substr( preg_replace( '/\D/', '', (string) get_field( 'income_month', $id ) ), 0, 6 );
+                    $llave_fac = $empresa->ID . '_' . $ym_fila;
+                    if ( ! isset( $talos_facturas_cache[ $llave_fac ] ) ) {
+                        $talos_facturas_cache[ $llave_fac ] = function_exists( 'talos_facturas_de' ) ? count( talos_facturas_de( $empresa->ID, $ym_fila ) ) : 0;
+                    }
+                    $n_fac = $talos_facturas_cache[ $llave_fac ];
                     ?>
-                  <button class="attach-btn<?php echo 2 === $listos ? ' complete' : ''; ?>" data-role="attach" data-pdf="<?php echo $tiene_pdf ? '1' : '0'; ?>" data-xml="<?php echo $tiene_xml ? '1' : '0'; ?>"><svg viewBox="0 0 24 24"><use href="#i-paperclip"/></svg><?php echo esc_html( $listos ); ?>/2</button>
+                  <button class="attach-btn<?php echo $n_fac ? ' complete' : ''; ?>" data-role="attach" data-empresa="<?php echo esc_attr( $empresa->ID ); ?>" data-empresa-nombre="<?php echo esc_attr( $empresa->post_title ); ?>" data-mes="<?php echo esc_attr( substr( $ym_fila, 0, 4 ) . '-' . substr( $ym_fila, 4, 2 ) ); ?>" title="Factura de la empresa en este mes"<?php echo $es_factura ? '' : ' hidden'; ?>><svg viewBox="0 0 24 24"><use href="#i-paperclip"/></svg><span data-role="attach-label"><?php echo $n_fac ? 'Lista' : 'Subir'; ?></span></button>
+                  <span class="attach-muted"<?php echo $es_factura ? ' hidden' : ''; ?>>—</span>
                 <?php else : ?>
                   <span class="attach-muted">—</span>
                 <?php endif; ?>
@@ -284,29 +286,6 @@ get_header();
   </div>
 </div>
 
-<!-- ===== Modal: archivos de Factura (PDF + XML) ===== -->
-<div class="modal-overlay" id="modalFactura">
-  <div class="modal-box">
-    <div class="modal-icon"><svg viewBox="0 0 24 24"><use href="#i-paperclip"/></svg></div>
-    <h4>Archivos de Factura</h4>
-    <p id="modalFacturaEmpresa"></p>
-    <div class="factura-row">
-      <span>PDF</span>
-      <span class="factura-estado" id="facturaPdfEstado">Sin subir</span>
-      <input type="file" id="facturaPdfInput" accept=".pdf" style="display:none">
-      <button class="btn-ghost" id="btnSubirPdf" type="button">Subir PDF</button>
-    </div>
-    <div class="factura-row">
-      <span>XML</span>
-      <span class="factura-estado" id="facturaXmlEstado">Sin subir</span>
-      <input type="file" id="facturaXmlInput" accept=".xml" style="display:none">
-      <button class="btn-ghost" id="btnSubirXml" type="button">Subir XML</button>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-ghost" data-close-modal>Cerrar</button>
-    </div>
-  </div>
-</div>
 
 <div class="modal-overlay" id="modalNuevoIngreso">
   <div class="modal-box">
@@ -390,7 +369,7 @@ try{
     document.getElementById('toastIngresosTexto').textContent = texto;
     toast.classList.add('show');
     clearTimeout(toast._t);
-    toast._t = setTimeout(function(){ toast.classList.remove('show'); }, 3000);
+    toast._t = setTimeout(function(){ toast.classList.remove('show'); }, Math.max(3000, texto.length * 60));
   }
 
   var fmt = function(n){ return '$' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
@@ -441,6 +420,11 @@ try{
       recalcRowPreview(btn.closest('tr'));
       guardarCampo(btn.closest('tr'), 'income_doc_type', esFactura ? 'nota_venta' : 'factura');
       btn.closest('tr').setAttribute('data-sort-doc', esFactura ? 'nota_venta' : 'factura');
+      var clip = btn.closest('tr').querySelector('[data-role="attach"]');
+      if (clip){
+        clip.hidden = esFactura;
+        clip.nextElementSibling.hidden = !esFactura;
+      }
     });
   });
 
@@ -512,7 +496,9 @@ try{
         row.querySelector('.row-check').checked = false;
       });
       updateSelectionBar();
-      mostrarToast(res.data.correos_enviados + ' correo(s) enviado(s) correctamente.' + (res.data.sin_contacto.length ? ' Sin contacto registrado: ' + res.data.sin_contacto.join(', ') : ''));
+      mostrarToast(res.data.correos_enviados + ' correo(s) enviado(s) correctamente.'
+        + (res.data.sin_factura && res.data.sin_factura.length ? ' Sin enviar, falta la factura (PDF + XML): ' + res.data.sin_factura.join(', ') + '.' : '')
+        + (res.data.sin_contacto.length ? ' Sin contacto registrado: ' + res.data.sin_contacto.join(', ') : ''));
     });
   });
 
@@ -596,56 +582,19 @@ try{
     }).catch(function(){ btn.disabled = false; mostrarToast('No se pudo crear el ingreso.'); });
   });
 
-  // ===== Archivos de Factura (PDF + XML) =====
-  var modalFactura = document.getElementById('modalFactura');
-  var filaFacturaActual = null;
-
-  function actualizarEstadoFactura(){
-    var btn = filaFacturaActual.querySelector('[data-role="attach"]');
-    var tienePdf = btn.getAttribute('data-pdf') === '1';
-    var tieneXml = btn.getAttribute('data-xml') === '1';
-    document.getElementById('facturaPdfEstado').textContent = tienePdf ? 'Listo ✓' : 'Sin subir';
-    document.getElementById('facturaPdfEstado').classList.toggle('listo', tienePdf);
-    document.getElementById('facturaXmlEstado').textContent = tieneXml ? 'Listo ✓' : 'Sin subir';
-    document.getElementById('facturaXmlEstado').classList.toggle('listo', tieneXml);
-    var listos = (tienePdf ? 1 : 0) + (tieneXml ? 1 : 0);
-    btn.textContent = '';
-    btn.innerHTML = '<svg viewBox="0 0 24 24"><use href="#i-paperclip"/></svg>' + listos + '/2';
-    btn.classList.toggle('complete', listos === 2);
-  }
-
+  // ===== Factura de la empresa en el mes (modal compartido, includes/ajax-facturas.php) =====
   document.querySelectorAll('[data-role="attach"]').forEach(function(btn){
     btn.addEventListener('click', function(){
-      filaFacturaActual = btn.closest('tr');
-      document.getElementById('modalFacturaEmpresa').textContent = filaFacturaActual.querySelector('.client-name').textContent.trim();
-      actualizarEstadoFactura();
-      modalFactura.classList.add('show');
+      if (window.talosFacturas) window.talosFacturas.abrir(btn.getAttribute('data-empresa'), btn.getAttribute('data-empresa-nombre'), btn.getAttribute('data-mes'), false);
     });
   });
-  modalFactura.querySelectorAll('[data-close-modal]').forEach(function(b){ b.addEventListener('click', function(){ modalFactura.classList.remove('show'); }); });
-
-  function subirArchivoFactura(tipo, archivo){
-    if (!filaFacturaActual || !archivo) return;
-    var form = new FormData();
-    form.append('action', 'talos_subir_factura_archivo');
-    form.append('nonce', talosNonce);
-    form.append('income_id', filaFacturaActual.getAttribute('data-income-id'));
-    form.append('tipo', tipo);
-    form.append('archivo', archivo);
-    fetch(talosAjaxUrl, { method: 'POST', body: form, credentials: 'same-origin' }).then(function(r){ return r.json(); }).then(function(res){
-      if (!res.success){ mostrarToast(res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo subir el archivo.'); return; }
-      var btn = filaFacturaActual.querySelector('[data-role="attach"]');
-      btn.setAttribute('data-pdf', res.data.tiene_pdf ? '1' : '0');
-      btn.setAttribute('data-xml', res.data.tiene_xml ? '1' : '0');
-      actualizarEstadoFactura();
-      mostrarToast('Archivo "' + res.data.nombre + '" subido correctamente.');
+  document.addEventListener('talos:facturas', function(e){
+    var r = e.detail;
+    document.querySelectorAll('[data-role="attach"][data-empresa="' + r.empresa_id + '"][data-mes="' + r.mes + '"]').forEach(function(btn){
+      btn.classList.toggle('complete', r.facturas.length > 0);
+      btn.querySelector('[data-role="attach-label"]').textContent = r.facturas.length ? 'Lista' : 'Subir';
     });
-  }
-
-  document.getElementById('btnSubirPdf').addEventListener('click', function(){ document.getElementById('facturaPdfInput').click(); });
-  document.getElementById('btnSubirXml').addEventListener('click', function(){ document.getElementById('facturaXmlInput').click(); });
-  document.getElementById('facturaPdfInput').addEventListener('change', function(e){ subirArchivoFactura('pdf', e.target.files[0]); e.target.value = ''; });
-  document.getElementById('facturaXmlInput').addEventListener('change', function(e){ subirArchivoFactura('xml', e.target.files[0]); e.target.value = ''; });
+  });
 
   // ===== Eliminar (individual o masivo) — mueve a la papelera de WordPress =====
   var modalEliminar = document.getElementById('modalEliminar');
@@ -681,5 +630,6 @@ try{
 </script>
 
 <?php talos_generar_mes_modal( $talos_mes_viendo ); ?>
+<?php talos_facturas_modal(); ?>
 
 <?php get_footer(); ?>
