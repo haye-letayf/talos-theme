@@ -151,6 +151,7 @@ get_header();
     <button class="active" data-filter="todos">Todos</button>
     <button data-filter="actual">Actuales</button>
     <button data-filter="atrasado">Atrasados</button>
+    <button data-filter="pendiente">Pendientes</button>
   </div>
   <div class="seg-spacer"></div>
   <div class="selection-bar" id="selectionBar">
@@ -446,7 +447,10 @@ try{
       btn.classList.add('active');
       var filtro = btn.getAttribute('data-filter');
       document.querySelectorAll('#incomeBody tr.income-row').forEach(function(row){
-        row.hidden = (filtro !== 'todos' && row.getAttribute('data-group') !== filtro);
+        // Pendientes = todo lo no pagado de la tabla (atrasados + no pagados del mes)
+        row.hidden = filtro === 'pendiente'
+          ? row.getAttribute('data-sort-pagado') === '1'
+          : (filtro !== 'todos' && row.getAttribute('data-group') !== filtro);
       });
     });
   });

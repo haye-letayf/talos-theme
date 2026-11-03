@@ -188,6 +188,7 @@ get_header();
     <button class="active" data-filter="todos">Todos</button>
     <button data-filter="actual">Actuales</button>
     <button data-filter="atrasado">Atrasados</button>
+    <button data-filter="pendiente">Pendientes</button>
   </div>
   <div class="seg-spacer"></div>
   <div class="selection-bar" id="selectionBar">
@@ -383,14 +384,17 @@ try{
     toast._t = setTimeout(function(){ toast.classList.remove('show'); }, 3000);
   }
 
-  // Filtros rápidos: Todos / Actuales / Atrasados
+  // Filtros rápidos: Todos / Actuales / Atrasados / Pendientes (todo lo no pagado de la tabla)
   document.querySelectorAll('[data-group-filter] button').forEach(function(btn){
     btn.addEventListener('click', function(){
       document.querySelectorAll('[data-group-filter] button').forEach(function(b){ b.classList.remove('active'); });
       btn.classList.add('active');
       var filtro = btn.getAttribute('data-filter');
       document.querySelectorAll('#expenseBody tr').forEach(function(row){
-        row.hidden = (filtro !== 'todos' && row.getAttribute('data-group') !== filtro);
+        if (!row.hasAttribute('data-expense-id')) return;
+        row.hidden = filtro === 'pendiente'
+          ? row.getAttribute('data-sort-pagado') === '1'
+          : (filtro !== 'todos' && row.getAttribute('data-group') !== filtro);
       });
     });
   });
