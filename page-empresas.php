@@ -214,6 +214,7 @@ if ( $talos_ficha_id ) {
             'estatus'     => ! empty( get_field( 'service_status', $talos_servicio_post->ID ) ),
             'inicio'      => get_field( 'service_start_date', $talos_servicio_post->ID ) ?: '',
             'fin'         => get_field( 'service_end_date', $talos_servicio_post->ID ) ?: '',
+            'motivo'      => (string) get_field( 'service_suspension_reason', $talos_servicio_post->ID ),
             'datos'       => array(
                 'id'           => $talos_servicio_post->ID,
                 'servicio'     => (int) get_field( 'service_item', $talos_servicio_post->ID, false ),
@@ -228,12 +229,28 @@ if ( $talos_ficha_id ) {
                 'fin'          => talos_emp_fecha_input( get_field( 'service_end_date', $talos_servicio_post->ID, false ) ),
                 'activo'       => (bool) get_field( 'service_status', $talos_servicio_post->ID ),
                 'recordatorio' => (bool) get_field( 'service_reminder_allowed', $talos_servicio_post->ID ),
+                'motivo'       => (string) get_field( 'service_suspension_reason', $talos_servicio_post->ID ),
             ),
         );
     }
     // Activos primero
     usort( $talos_ficha_servicios, function ( $a, $b ) { return (int) $b['estatus'] - (int) $a['estatus']; } );
     $talos_catalogo_servicios = get_posts( array( 'post_type' => 'talos_service_cat', 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC' ) );
+    // Valores de referencia del catálogo para autollenar el modal al elegir
+    // el servicio (sin AJAX: el catálogo es chico).
+    // Parte del catálogo trae la frecuencia con la etiqueta vieja ("Mensual",
+    // "Único", "Hora") en vez del slug; se traduce al slug del select.
+    $talos_frecuencia_viejas = array( 'único' => 'pago_unico', 'unico' => 'pago_unico', 'hora' => 'por_hora' );
+    $talos_catalogo_autollenado = array();
+    foreach ( $talos_catalogo_servicios as $svc ) {
+        $frecuencia = mb_strtolower( trim( (string) get_field( 'service_ref_frequency', $svc->ID ) ) );
+        $frecuencia = $talos_frecuencia_viejas[ $frecuencia ] ?? $frecuencia;
+        $talos_catalogo_autollenado[ $svc->ID ] = array(
+            'descripcion' => (string) get_field( 'service_description', $svc->ID ),
+            'precio'      => (float) get_field( 'service_ref_price_mxn', $svc->ID ),
+            'frecuencia'  => isset( $talos_frecuencia_labels_empresa[ $frecuencia ] ) ? $frecuencia : '',
+        );
+    }
 }
 
 get_header();
@@ -434,7 +451,7 @@ get_header();
             <tbody>
               <?php foreach ( $talos_ficha_servicios as $s ) : ?>
                 <tr>
-                  <td><?php echo esc_html( $s['nombre'] ); ?></td>
+                  <td><?php echo esc_html( $s['nombre'] ); ?><?php if ( $s['motivo'] ) : ?><span class="field-hint" style="display:block;margin-top:2px;">Motivo: <?php echo esc_html( $s['motivo'] ); ?></span><?php endif; ?></td>
                   <td><?php echo esc_html( $talos_frecuencia_labels_empresa[ $s['frecuencia'] ] ?? ( $s['frecuencia'] ?: '—' ) ); ?></td>
                   <td><?php echo esc_html( ( $s['inicio'] ?: '—' ) . ( $s['fin'] ? ' – ' . $s['fin'] : '' ) ); ?></td>
                   <?php if ( current_user_can( 'manage_options' ) ) : ?><td class="num tabular"><?php echo esc_html( talos_fmt_mxn( $s['precio'] ) ); ?></td><?php endif; ?>
@@ -511,6 +528,10 @@ get_header();
         <label for="ctMeses">Meses del diferido</label>
         <input type="number" id="ctMeses" min="1" step="1" placeholder="Ej. 12">
         <span class="field-hint">El precio es el total del proyecto; cada mes se cobra precio ÷ meses, con la leyenda "Pago X de Y".</span>
+      </div>
+      <div class="form-field">
+        <label for="ctMotivo">Motivo de suspensión (opcional)</label>
+        <textarea id="ctMotivo" rows="2" placeholder="Ej. Pausa la campaña por temporada baja"></textarea>
       </div>
       <div class="modal-actions">
         <button class="btn-ghost" data-close-modal>Cancelar</button>
@@ -715,12 +736,14 @@ try{
   // ===== Servicios Contratados: agregar / editar (mismo modal) =====
   var modalContrato = document.getElementById('modalContrato');
   var contratoEditando = 0;
+  var frecuenciaElegida = false; // true si ya trae una frecuencia real (no la "Mensual" por defecto)
   function abrirModalContrato(d){
     contratoEditando = d ? d.id : 0;
     document.getElementById('modalContratoTitulo').textContent = d ? 'Editar servicio' : 'Agregar servicio';
     document.getElementById('ctServicio').value = d && d.servicio ? String(d.servicio) : '';
     document.getElementById('ctDescripcion').value = d ? d.descripcion : '';
     document.getElementById('ctFrecuencia').value = d && d.frecuencia ? d.frecuencia : 'mensual';
+    frecuenciaElegida = !!(d && d.frecuencia);
     document.getElementById('ctPrecio').value = d ? d.precio : '';
     document.getElementById('ctCosto').value = d ? d.costo : '';
     document.getElementById('ctInicio').value = d ? d.inicio : '';
@@ -730,6 +753,7 @@ try{
     document.getElementById('ctRecordatorio').checked = d ? d.recordatorio : true;
     document.getElementById('ctDiferido').checked = d ? d.diferido : false;
     document.getElementById('ctMeses').value = d ? d.meses : '';
+    document.getElementById('ctMotivo').value = d ? (d.motivo || '') : '';
     document.getElementById('ctMesesWrap').hidden = !document.getElementById('ctDiferido').checked;
     modalContrato.classList.add('show');
   }
@@ -737,6 +761,19 @@ try{
   document.querySelectorAll('[data-role="editar-contrato"]').forEach(function(btn){
     btn.addEventListener('click', function(){ abrirModalContrato(JSON.parse(btn.getAttribute('data-contrato'))); });
   });
+  // Al elegir servicio: la descripción viene siempre del catálogo (conceptos
+  // estándar); precio y frecuencia solo si están vacíos (o la frecuencia sigue
+  // en el "Mensual" por defecto), para no pisar lo especial del cliente.
+  var catalogoAutollenado = <?php echo wp_json_encode( (object) $talos_catalogo_autollenado ); ?>;
+  document.getElementById('ctServicio').addEventListener('change', function(){
+    var ref = catalogoAutollenado[this.value];
+    if (!ref) return;
+    if (ref.descripcion) document.getElementById('ctDescripcion').value = ref.descripcion;
+    var precio = document.getElementById('ctPrecio');
+    if (precio.value === '' && ref.precio) precio.value = ref.precio;
+    if (!frecuenciaElegida && ref.frecuencia) document.getElementById('ctFrecuencia').value = ref.frecuencia;
+  });
+  document.getElementById('ctFrecuencia').addEventListener('change', function(){ frecuenciaElegida = true; });
   document.getElementById('ctDiferido').addEventListener('change', function(){ document.getElementById('ctMesesWrap').hidden = !this.checked; });
   modalContrato.querySelectorAll('[data-close-modal]').forEach(function(b){ b.addEventListener('click', function(){ modalContrato.classList.remove('show'); }); });
   document.getElementById('btnGuardarContrato').addEventListener('click', function(){
@@ -755,7 +792,8 @@ try{
       activo: document.getElementById('ctActivo').checked ? '1' : '',
       recordatorio: document.getElementById('ctRecordatorio').checked ? '1' : '',
       diferido: document.getElementById('ctDiferido').checked ? '1' : '',
-      meses: document.getElementById('ctMeses').value
+      meses: document.getElementById('ctMeses').value,
+      motivo: document.getElementById('ctMotivo').value.trim()
     };
     if (!campos.servicio_id){ mostrarToastEmpresas('Elige el servicio del catálogo.'); return; }
     if (campos.precio === '' || parseFloat(campos.precio) < 0){ mostrarToastEmpresas('Escribe el precio.'); return; }

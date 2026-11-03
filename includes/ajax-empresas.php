@@ -194,6 +194,7 @@ function talos_ajax_guardar_contrato() {
     update_field( 'service_end_date', $fin ? $fin->format( 'Ymd' ) : '', $contrato_id );
     update_field( 'service_status', ! empty( $_POST['activo'] ) ? 1 : 0, $contrato_id );
     update_field( 'service_reminder_allowed', ! empty( $_POST['recordatorio'] ) ? 1 : 0, $contrato_id );
+    update_field( 'service_suspension_reason', sanitize_textarea_field( wp_unslash( $_POST['motivo'] ?? '' ) ), $contrato_id );
     do_action( 'acf/save_post', $contrato_id );
 
     wp_send_json_success( array( 'id' => $contrato_id ) );
