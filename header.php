@@ -92,7 +92,7 @@ if ( $talos_es_seccion_con_mes ) {
 
 <aside class="sidebar" id="sidebar">
   <div class="brand">
-    <img src="<?php echo esc_url( get_template_directory_uri() . '/assets/images/once24-logo-white.png' ); ?>" alt="Once24">
+    <img src="<?php echo esc_url( get_template_directory_uri() . '/assets/images/once24-logo-white-v3.png' ); ?>" alt="Once24">
     <span class="brand-sub">TALOS</span>
   </div>
   <nav class="nav-group">

@@ -13,10 +13,10 @@
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// Respaldo por si el tema llega antes que talos-core 2.19.1 (que sirve el logo).
+// Respaldo por si el tema llega antes que talos-core 2.19.2 (que define el logo).
 if ( ! function_exists( 'talos_logo_correo_url' ) ) {
     function talos_logo_correo_url() {
-        return 'https://1124.com.mx/a/wp-content/uploads/2026/05/once24-main-logo-horizontal-bicolor.png';
+        return 'https://talos.1124.com.mx/a/wp-content/uploads/2026/11/01-a-main-logo-colors-v3.png';
     }
 }
 

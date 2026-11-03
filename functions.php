@@ -163,10 +163,21 @@ function talos_restringir_acceso() {
 add_action( 'template_redirect', 'talos_restringir_acceso' );
 
 /**
+ * Favicon de Talos (logo Once24 v3) en el front y en el login.
+ */
+function talos_favicon() {
+    $icono = esc_url( get_template_directory_uri() . '/assets/images/once24-favicon-v3.png' );
+    echo '<link rel="icon" type="image/png" href="' . $icono . '">' . "\n";
+    echo '<link rel="apple-touch-icon" href="' . $icono . '">' . "\n";
+}
+add_action( 'wp_head', 'talos_favicon', 1 );
+add_action( 'login_head', 'talos_favicon', 1 );
+
+/**
  * Pantalla de login con marca Once24 en vez del wp-login.php genérico de WordPress.
  */
 function talos_login_personalizado() {
-    $logo = esc_url( get_template_directory_uri() . '/assets/images/once24-logo-white.png' );
+    $logo = esc_url( get_template_directory_uri() . '/assets/images/once24-logo-white-v3.png' );
     ?>
     <style>
       body.login{background:#0b1a3d;font-family:'Poppins',-apple-system,sans-serif;}
