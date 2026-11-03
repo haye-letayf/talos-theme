@@ -52,9 +52,14 @@ function talos_ajax_factura_subir() {
     if ( empty( $_FILES['pdf'] ) || empty( $_FILES['xml'] ) ) {
         wp_send_json_error( array( 'mensaje' => 'Sube el PDF y el XML de la factura.' ) );
     }
-    $r = talos_factura_guardar( $empresa_id, $ym, $_FILES['pdf'], $_FILES['xml'] ); // phpcs:ignore -- se valida en talos-core
+    $actualizar_ficha = ! empty( $_POST['actualizar_ficha'] );
+    $r = talos_factura_guardar( $empresa_id, $ym, $_FILES['pdf'], $_FILES['xml'], $actualizar_ficha ); // phpcs:ignore -- se valida en talos-core
     if ( is_wp_error( $r ) ) {
-        wp_send_json_error( array( 'mensaje' => $r->get_error_message() ) );
+        $error = array( 'mensaje' => $r->get_error_message() );
+        if ( 'rfc_distinto' === $r->get_error_code() ) {
+            $error['conflicto'] = $r->get_error_data();
+        }
+        wp_send_json_error( $error );
     }
     $json = talos_fac_resumen_json( $empresa_id, $ym );
     $json['avisos'] = $r['avisos'];
@@ -99,6 +104,11 @@ function talos_facturas_modal() {
   .fc-resumen.alerta{background:var(--danger-soft);color:var(--danger);}
   .fc-avisos{font-size:12.5px;color:var(--danger);margin:0 0 12px;}
   .fc-avisos:empty{display:none;}
+  .fc-conflicto{border:1px solid var(--danger);border-radius:9px;padding:12px;margin:0 0 14px;font-size:12.5px;}
+  .fc-conflicto[hidden]{display:none!important;}
+  .fc-conflicto table{width:100%;border-collapse:collapse;margin:8px 0 12px;}
+  .fc-conflicto th,.fc-conflicto td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--border);vertical-align:top;}
+  .fc-conflicto .fc-conflicto-acciones{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;}
 </style>
 <div class="modal-overlay" id="modalFacturas">
   <div class="modal-box" style="max-width:560px;">
@@ -122,6 +132,19 @@ function talos_facturas_modal() {
       </div>
     </div>
     <div class="fc-avisos" id="fcAvisos"></div>
+    <div class="fc-conflicto" id="fcConflicto" hidden>
+      <strong style="color:var(--danger);">El RFC de la factura no coincide con la ficha.</strong>
+      <div>Casi siempre es porque se eligió otra empresa. Si de verdad es esta, la ficha se actualiza con los datos del XML.</div>
+      <table>
+        <tr><th></th><th>Ficha</th><th>XML</th></tr>
+        <tr><th>RFC</th><td id="fcFichaRfc"></td><td id="fcXmlRfc"></td></tr>
+        <tr><th>Razón social</th><td id="fcFichaRazon"></td><td id="fcXmlRazon"></td></tr>
+      </table>
+      <div class="fc-conflicto-acciones">
+        <button class="btn-confirm" type="button" id="btnConflictoCancelar">Cancelar</button>
+        <button class="btn-ghost" type="button" id="btnConflictoActualizar">Es la empresa correcta: actualizar la ficha</button>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn-ghost" data-close-modal>Cerrar</button>
       <button class="btn-confirm" id="btnSubirFactura">Subir factura</button>
@@ -207,6 +230,7 @@ function talos_facturas_modal() {
       $('fcMes').disabled = !mesEditable;
       $('fcPdf').value = ''; $('fcXml').value = '';
       $('fcAvisos').textContent = '';
+      $('fcConflicto').hidden = true;
       modal.classList.add('show');
       cargar();
     }
@@ -214,19 +238,40 @@ function talos_facturas_modal() {
   $('fcMes').addEventListener('change', cargar);
   modal.querySelectorAll('[data-close-modal]').forEach(function(b){ b.addEventListener('click', function(){ modal.classList.remove('show'); }); });
 
-  $('btnSubirFactura').addEventListener('click', function(){
-    var btn = this;
+  function subir(actualizarFicha){
+    var btn = $('btnSubirFactura');
     var pdf = $('fcPdf').files[0], xml = $('fcXml').files[0];
     $('fcAvisos').textContent = '';
+    $('fcConflicto').hidden = true;
     if (!pdf || !xml){ $('fcAvisos').textContent = 'Elige el PDF y el XML de la factura.'; return; }
+    var datos = { empresa_id: empresaId, mes: $('fcMes').value, pdf: pdf, xml: xml };
+    if (actualizarFicha) datos.actualizar_ficha = '1';
     btn.disabled = true; btn.textContent = 'Subiendo…';
-    post('talos_factura_subir', { empresa_id: empresaId, mes: $('fcMes').value, pdf: pdf, xml: xml }).then(function(res){
+    post('talos_factura_subir', datos).then(function(res){
       btn.disabled = false; btn.textContent = 'Subir factura';
-      if (!res.success){ $('fcAvisos').textContent = res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo subir la factura.'; return; }
+      if (!res.success){
+        var c = res.data && res.data.conflicto;
+        if (c){
+          $('fcFichaRfc').textContent = c.ficha_rfc || '—';
+          $('fcXmlRfc').textContent = c.xml_rfc || '—';
+          $('fcFichaRazon').textContent = c.ficha_razon || '—';
+          $('fcXmlRazon').textContent = c.xml_razon || '—';
+          $('fcConflicto').hidden = false;
+          return;
+        }
+        $('fcAvisos').textContent = res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo subir la factura.';
+        return;
+      }
       $('fcPdf').value = ''; $('fcXml').value = '';
       $('fcAvisos').textContent = (res.data.avisos || []).join(' ');
       pintar(res.data); avisar(res.data);
     }).catch(function(){ btn.disabled = false; btn.textContent = 'Subir factura'; $('fcAvisos').textContent = 'No se pudo conectar. Intenta de nuevo.'; });
+  }
+  $('btnSubirFactura').addEventListener('click', function(){ subir(false); });
+  $('btnConflictoActualizar').addEventListener('click', function(){ subir(true); });
+  $('btnConflictoCancelar').addEventListener('click', function(){
+    $('fcConflicto').hidden = true;
+    $('fcPdf').value = ''; $('fcXml').value = '';
   });
 })();
 </script>
