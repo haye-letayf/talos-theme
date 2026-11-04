@@ -71,6 +71,25 @@ $talos_servicios_cat = get_posts( array( 'post_type' => 'talos_service_cat', 'po
 // ===== Empresas (para el modal de Nuevo Ingreso) =====
 $talos_ing_empresas = get_posts( array( 'post_type' => 'talos_company', 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC' ) );
 
+// ===== Servicios de pago único activos, por empresa (Nuevo Ingreso pregunta
+// si es su cobro; al pagarse, talos-core desactiva el contrato) =====
+$talos_pago_unico_por_empresa = array();
+if ( function_exists( 'talos_contratos_pago_unico_activos' ) ) {
+    foreach ( talos_contratos_pago_unico_activos() as $cid ) {
+        $emp = (int) get_post_meta( $cid, 'service_company', true );
+        if ( ! $emp ) continue;
+        $svc  = (int) get_post_meta( $cid, 'service_item', true );
+        $desc = (string) get_field( 'service_invoice_description', $cid );
+        $talos_pago_unico_por_empresa[ $emp ][] = array(
+            'id'       => $cid,
+            'servicio' => $svc,
+            'nombre'   => $desc ?: ( $svc ? get_the_title( $svc ) : 'Servicio' ),
+            'precio'   => (float) get_field( 'service_price', $cid ) * max( 1, (float) get_field( 'service_quantity', $cid ) ),
+            'factura'  => (bool) get_field( 'service_applies_iva', $cid ),
+        );
+    }
+}
+
 $talos_filas = array();
 foreach ( $talos_atrasados_ids as $id ) { $talos_filas[] = array( 'id' => $id, 'grupo' => 'atrasado' ); }
 foreach ( $talos_normales_ids as $id )  { $talos_filas[] = array( 'id' => $id, 'grupo' => 'actual' ); }
@@ -311,6 +330,11 @@ get_header();
         <?php endforeach; ?>
       </select>
       <span class="field-hint">¿No está en la lista? Primero créala en Empresas.</span>
+    </div>
+    <div class="form-field" id="niPagoUnicoBox" hidden>
+      <label for="niContrato">¿Es el cobro de este servicio?</label>
+      <select id="niContrato"></select>
+      <span class="field-hint">Es de pago único: al registrar el pago, el servicio se desactiva solo.</span>
     </div>
     <div class="form-field">
       <label for="niServicio">Servicio</label>
@@ -569,6 +593,32 @@ try{
   }
   document.getElementById('niMonto').addEventListener('input', niRecalcTotal);
   document.getElementById('niDoc').addEventListener('change', niRecalcTotal);
+  var niPagoUnico = <?php echo wp_json_encode( (object) $talos_pago_unico_por_empresa ); ?>;
+  var niContrato = document.getElementById('niContrato');
+  function niFormatear(n){ return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
+  document.getElementById('niEmpresa').addEventListener('change', function(){
+    var lista = niPagoUnico[this.value] || [];
+    niContrato.innerHTML = '';
+    var no = document.createElement('option');
+    no.value = ''; no.textContent = 'No, es otro cobro';
+    niContrato.appendChild(no);
+    lista.forEach(function(c){
+      var o = document.createElement('option');
+      o.value = c.id; o.textContent = c.nombre + ' · ' + niFormatear(c.precio);
+      niContrato.appendChild(o);
+    });
+    document.getElementById('niPagoUnicoBox').hidden = !lista.length;
+  });
+  niContrato.addEventListener('change', function(){
+    var empresa = document.getElementById('niEmpresa').value;
+    var c = (niPagoUnico[empresa] || []).filter(function(x){ return String(x.id) === niContrato.value; })[0];
+    if (!c) return;
+    if (c.servicio) document.getElementById('niServicio').value = c.servicio;
+    document.getElementById('niDescripcion').value = c.nombre;
+    document.getElementById('niMonto').value = c.precio;
+    document.getElementById('niDoc').value = c.factura ? 'factura' : 'nota_venta';
+    niRecalcTotal();
+  });
   document.getElementById('btnNuevoIngreso').addEventListener('click', function(){
     modalNuevoIngreso.classList.add('show');
     document.getElementById('niEmpresa').focus();
@@ -579,6 +629,7 @@ try{
     var datos = {
       empresa_id: document.getElementById('niEmpresa').value,
       servicio_id: document.getElementById('niServicio').value,
+      contrato_id: document.getElementById('niPagoUnicoBox').hidden ? '' : niContrato.value,
       descripcion: document.getElementById('niDescripcion').value.trim(),
       mes: document.getElementById('niMes').value,
       monto: document.getElementById('niMonto').value,

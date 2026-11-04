@@ -258,8 +258,8 @@ function talos_ajax_enviar_notas() {
 add_action( 'wp_ajax_talos_enviar_notas', 'talos_ajax_enviar_notas' );
 
 /**
- * Nuevo Ingreso: cobros de una sola vez que no salen de un Servicio Contratado
- * (desarrollos, setups, extras). Subtotal/Total/IVA los calcula talos-core
+ * Nuevo Ingreso: cobros de una sola vez (desarrollos, setups, extras). Si es
+ * el cobro de un Servicio Contratado de pago único, llega contrato_id. Subtotal/Total/IVA los calcula talos-core
  * (talos_normalizar_income_al_guardar) con el mismo acf/save_post de siempre.
  */
 function talos_ajax_crear_income() {
@@ -281,6 +281,14 @@ function talos_ajax_crear_income() {
     if ( $servicio_id && 'talos_service_cat' !== get_post_type( $servicio_id ) ) {
         $servicio_id = 0;
     }
+    // Cobro de un servicio contratado de pago único de esta empresa: se liga
+    // (_talos_contract_id) para que talos-core lo desactive al pagarse.
+    $contrato_id = isset( $_POST['contrato_id'] ) ? (int) $_POST['contrato_id'] : 0;
+    if ( $contrato_id && ( 'talos_contract' !== get_post_type( $contrato_id )
+        || (int) get_post_meta( $contrato_id, 'service_company', true ) !== $empresa_id
+        || ! function_exists( 'talos_contrato_es_pago_unico' ) || ! talos_contrato_es_pago_unico( $contrato_id ) ) ) {
+        wp_send_json_error( array( 'mensaje' => 'Ese servicio no es de pago único de esta empresa.' ) );
+    }
     if ( '' === $descripcion ) {
         wp_send_json_error( array( 'mensaje' => 'Escribe la descripción.' ) );
     }
@@ -300,6 +308,9 @@ function talos_ajax_crear_income() {
         wp_send_json_error( array( 'mensaje' => 'No se pudo crear el ingreso.' ) );
     }
 
+    if ( $contrato_id ) {
+        update_post_meta( $nuevo_id, '_talos_contract_id', $contrato_id );
+    }
     update_field( 'income_company', $empresa_id, $nuevo_id );
     if ( $servicio_id ) {
         update_field( 'income_service', $servicio_id, $nuevo_id );
