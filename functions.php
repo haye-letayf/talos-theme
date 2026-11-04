@@ -14,6 +14,7 @@ require_once get_template_directory() . '/includes/ajax-servicios.php';
 require_once get_template_directory() . '/includes/ajax-equipo.php';
 require_once get_template_directory() . '/includes/ajax-generar-mes.php';
 require_once get_template_directory() . '/includes/ajax-facturas.php';
+require_once get_template_directory() . '/includes/ajax-buscador.php';
 require_once get_template_directory() . '/includes/fichas-registro.php';
 
 function talos_enqueue_assets() {
@@ -33,6 +34,14 @@ function talos_enqueue_assets() {
 
     $app_js = $dir . '/assets/js/talos-app.js';
     wp_enqueue_script( 'talos-app', $uri . '/assets/js/talos-app.js', array(), file_exists( $app_js ) ? filemtime( $app_js ) : false, true );
+
+    // Buscador global del header (includes/ajax-buscador.php).
+    if ( is_user_logged_in() ) {
+        wp_add_inline_script( 'talos-app', 'var talosBuscador = ' . wp_json_encode( array(
+            'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+            'nonce'   => wp_create_nonce( 'talos_buscador' ),
+        ) ) . ';', 'before' );
+    }
 }
 add_action( 'wp_enqueue_scripts', 'talos_enqueue_assets' );
 

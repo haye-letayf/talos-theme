@@ -130,7 +130,14 @@ if ( $talos_es_seccion_con_mes ) {
   <?php endif; ?>
   <header class="topbar">
     <button class="menu-btn" id="menuBtn" aria-label="Abrir menú"><svg viewBox="0 0 24 24"><use href="#i-menu"/></svg></button>
-    <div class="search-box"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg><input type="text" id="talosBuscadorGlobal" placeholder="Buscar empresa, contacto, oportunidad…" autocomplete="off"></div>
+    <div class="search-box" id="talosBuscadorCaja">
+      <svg viewBox="0 0 24 24"><use href="#i-search"/></svg>
+      <input type="search" id="talosBuscadorGlobal" placeholder="Buscar empresa, contacto, oportunidad…" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="talosBuscadorResultados" aria-autocomplete="list">
+      <kbd class="search-kbd" aria-hidden="true">/</kbd>
+      <button type="button" class="search-cerrar" id="talosBuscadorCerrar" aria-label="Cerrar búsqueda"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+      <div class="search-resultados" id="talosBuscadorResultados" role="listbox" hidden></div>
+    </div>
+    <button type="button" class="icon-btn search-abrir" id="talosBuscadorAbrir" aria-label="Buscar"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg></button>
     <?php if ( $talos_es_seccion_con_mes ) : ?>
     <div class="topbar-mes">
       <a href="<?php echo esc_url( $talos_topbar_mes_prev ); ?>" class="icon-btn" aria-label="Mes anterior"><svg viewBox="0 0 24 24"><use href="#i-chevron-left"/></svg></a>
