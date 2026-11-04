@@ -1113,8 +1113,17 @@ try{
   document.getElementById('btnCancelarFicha').addEventListener('click', function(){
     window.location.href = window.location.pathname + '?ficha=<?php echo (int) $talos_ficha_id; ?>';
   });
+  // Cascada de talos-core: si la Empresa pasa a Inactive, sus contactos
+  // quedan Inactive + Lead. Se avisa antes de guardar.
+  var estatusOriginal = <?php echo wp_json_encode( (string) $f['company_status'] ); ?>;
+  var contactosPorInactivar = <?php echo function_exists( 'talos_cascada_contactos_por_cambiar' ) ? count( talos_cascada_contactos_por_cambiar( $talos_ficha_id ) ) : 0; ?>;
   document.getElementById('btnGuardarFicha').addEventListener('click', function(){
     var btn = this;
+    var selEstatus = document.querySelector('.data-field select[name="company_status"]');
+    if (selEstatus && selEstatus.value === 'inactive' && estatusOriginal !== 'inactive' && contactosPorInactivar > 0) {
+      var texto = contactosPorInactivar === 1 ? 'Su contacto pasa' : 'Sus ' + contactosPorInactivar + ' contactos pasan';
+      if (!confirm('Vas a marcar la empresa como Inactive. ' + texto + ' a Inactive + Lead. ¿Guardar?')) return;
+    }
     btn.disabled = true;
     var form = new FormData();
     form.append('action', 'talos_guardar_empresa');
