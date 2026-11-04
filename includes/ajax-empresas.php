@@ -78,7 +78,13 @@ function talos_ajax_guardar_empresa() {
         update_field( 'company_website', sanitize_url( wp_unslash( $_POST['company_website'] ) ), $id );
     }
     if ( isset( $_POST['company_zip'] ) ) {
-        update_field( 'company_zip', (float) $_POST['company_zip'], $id );
+        // Texto, no número: (float) le quitaba el cero inicial ("06500" ->
+        // 6500) y guardaba 0 cuando el campo iba vacío. Un CP de 1 a 4
+        // dígitos se rellena a 5 (México); otros formatos pasan igual.
+        $cp = sanitize_text_field( wp_unslash( $_POST['company_zip'] ) );
+        if ( '' === ltrim( $cp, '0' ) ) $cp = '';
+        if ( preg_match( '/^\d{1,4}$/', $cp ) ) $cp = str_pad( $cp, 5, '0', STR_PAD_LEFT );
+        update_field( 'company_zip', $cp, $id );
     }
 
     $campos_select = array( 'company_status', 'company_class', 'sector', 'company_state', 'company_tax_regime', 'company_cfdi', 'company_country' );

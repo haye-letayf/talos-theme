@@ -409,7 +409,7 @@ get_header();
       <div class="data-field">
         <label>Código Postal Fiscal</label>
         <div class="view-value"><?php echo esc_html( $f['company_zip'] ?: '—' ); ?></div>
-        <input type="number" name="company_zip" value="<?php echo esc_attr( $f['company_zip'] ); ?>">
+        <input type="text" inputmode="numeric" maxlength="10" name="company_zip" value="<?php echo esc_attr( $f['company_zip'] ); ?>">
       </div>
       <div class="data-field">
         <label>Entidad Federativa</label>
