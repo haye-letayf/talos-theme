@@ -188,11 +188,30 @@ if ( $talos_ficha_id ) {
         'company_whatsapp'=> get_field( 'company_whatsapp', $talos_ficha_id ),
     );
 
-    // Conteo de dependientes, solo para avisar antes de eliminar — no bloquea nada.
-    $talos_ficha_contactos_n = count( get_posts( array(
+    // Contactos de la Empresa (sección Contactos de la ficha). Activos primero.
+    // También sirve de conteo para avisar antes de eliminar la Empresa.
+    $talos_ficha_contactos = array();
+    foreach ( get_posts( array(
         'post_type' => 'talos_contact', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids',
+        'orderby' => 'title', 'order' => 'ASC',
         'meta_query' => array( array( 'key' => 'contact_company', 'value' => $talos_ficha_id ) ),
-    ) ) );
+    ) ) as $talos_contacto_id ) {
+        $talos_ficha_contactos[] = array(
+            'id'             => $talos_contacto_id,
+            'nombre'         => html_entity_decode( get_the_title( $talos_contacto_id ), ENT_QUOTES, 'UTF-8' ),
+            'cargo'          => (string) get_field( 'contact_role', $talos_contacto_id ),
+            'correo'         => (string) get_field( 'contact_company_email', $talos_contacto_id ),
+            'correo_personal'=> (string) get_field( 'contact_personal_email', $talos_contacto_id ),
+            'tel_oficina'    => (string) get_field( 'contact_phone_office', $talos_contacto_id ),
+            'celular'        => (string) get_field( 'contact_phone_mobile', $talos_contacto_id ),
+            'factura'        => (bool) get_field( 'contact_billing_recipient', $talos_contacto_id ),
+            'estatus'        => (string) get_field( 'contact_status', $talos_contacto_id ) ?: 'active',
+        );
+    }
+    usort( $talos_ficha_contactos, function ( $a, $b ) {
+        return ( 'inactive' === $a['estatus'] ) - ( 'inactive' === $b['estatus'] ) ?: strcasecmp( $a['nombre'], $b['nombre'] );
+    } );
+    $talos_ficha_contactos_n = count( $talos_ficha_contactos );
     $talos_ficha_oportunidades_n = count( get_posts( array(
         'post_type' => 'talos_opportunity', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids',
         'meta_query' => array( array( 'key' => 'opportunity_company', 'value' => $talos_ficha_id ) ),
@@ -461,6 +480,53 @@ get_header();
     <p class="field-hint" style="margin-top:16px;">Los perfiles de redes sociales todavía se editan desde wp-admin.</p>
   </div>
 
+  <?php $talos_es_director = current_user_can( 'manage_options' ); ?>
+  <div class="ficha-card">
+    <div class="ficha-section-label">Contactos</div>
+    <?php if ( ! $talos_ficha_contactos ) : ?>
+      <p class="field-hint">Sin contactos registrados. Sin uno que "Recibe Facturas", los correos de cobro no tienen a quién llegar.</p>
+    <?php else : ?>
+      <div class="table-card" style="box-shadow:none;">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Cargo</th>
+                <th>Correo</th>
+                <th>Celular</th>
+                <th>Estatus</th>
+                <?php if ( $talos_es_director ) : ?><th></th><?php endif; ?>
+              </tr>
+            </thead>
+            <tbody>
+              <?php foreach ( $talos_ficha_contactos as $c ) :
+                  $c_correo = $c['correo'] ?: $c['correo_personal']; ?>
+                <tr>
+                  <td>
+                    <?php if ( $talos_es_director ) : ?><a class="link-ficha" href="<?php echo esc_url( add_query_arg( 'ficha', $c['id'], home_url( '/contactos/' ) ) ); ?>"><?php echo esc_html( $c['nombre'] ); ?></a><?php else : echo esc_html( $c['nombre'] ); endif; ?>
+                    <?php if ( $c['factura'] ) : ?><span class="pill class-client" style="margin-left:6px;" title="Recibe Facturas y Cotizaciones">Facturas</span><?php endif; ?>
+                  </td>
+                  <td><?php echo esc_html( $c['cargo'] ? ( talos_contacto_cargo_labels()[ $c['cargo'] ] ?? $c['cargo'] ) : '—' ); ?></td>
+                  <td><?php if ( $c_correo ) : ?><div class="rfc-cell"><span><?php echo esc_html( $c_correo ); ?></span><button type="button" class="copy-btn" data-copy="<?php echo esc_attr( $c_correo ); ?>" data-copy-tipo="Correo" title="Copiar correo"><svg viewBox="0 0 24 24"><use href="#i-copy"/></svg></button></div><?php else : ?>—<?php endif; ?></td>
+                  <td><?php if ( $c['celular'] ) : ?><div class="rfc-cell"><span><?php echo esc_html( $c['celular'] ); ?></span><button type="button" class="copy-btn" data-copy="<?php echo esc_attr( $c['celular'] ); ?>" data-copy-tipo="Número" title="Copiar celular"><svg viewBox="0 0 24 24"><use href="#i-copy"/></svg></button></div><?php else : ?>—<?php endif; ?></td>
+                  <td><span class="pill status-<?php echo 'inactive' === $c['estatus'] ? 'inactive' : 'active'; ?>"><span class="pill-dot"></span><?php echo 'inactive' === $c['estatus'] ? 'Inactivo' : 'Activo'; ?></span></td>
+                  <?php if ( $talos_es_director ) : ?><td><button type="button" class="action-btn edit" data-role="editar-contacto" data-contacto="<?php echo esc_attr( wp_json_encode( $c ) ); ?>" title="Editar contacto"><svg viewBox="0 0 24 24"><use href="#i-edit"/></svg></button></td><?php endif; ?>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <?php endif; ?>
+    <?php if ( $talos_es_director ) : ?>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap;">
+        <p class="field-hint" style="margin:0;">Los correos de cobro van a los contactos activos con "Facturas". Apellidos y el resto de datos, en la ficha del contacto.</p>
+        <button type="button" class="btn-secondary" id="btnAgregarContacto"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg>Agregar contacto</button>
+      </div>
+    <?php endif; ?>
+  </div>
+
   <div class="ficha-card">
     <div class="ficha-section-label">Servicios Contratados</div>
     <?php if ( empty( $talos_ficha_servicios ) ) : ?>
@@ -553,6 +619,57 @@ get_header();
   <?php endif; ?>
 
   <?php if ( current_user_can( 'manage_options' ) ) : ?>
+  <div class="modal-overlay" id="modalContactoEmpresa">
+    <div class="modal-box" style="max-width:520px;">
+      <h4 id="modalContactoTitulo">Agregar contacto</h4>
+      <p class="modal-sub">Contacto de <?php echo esc_html( $f['nombre'] ); ?>.</p>
+      <div class="form-row">
+        <div class="form-field">
+          <label for="ccNombre">Nombre</label>
+          <input type="text" id="ccNombre" placeholder="Nombre y apellido">
+        </div>
+        <div class="form-field">
+          <label for="ccCargo">Cargo</label>
+          <select id="ccCargo">
+            <option value="">— Sin definir —</option>
+            <?php foreach ( talos_contacto_cargo_labels() as $val => $label ) : ?>
+              <option value="<?php echo esc_attr( $val ); ?>"><?php echo esc_html( $label ); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label for="ccCorreo">Correo empresa</label>
+          <input type="email" id="ccCorreo">
+        </div>
+        <div class="form-field">
+          <label for="ccCorreoPersonal">Correo personal</label>
+          <input type="email" id="ccCorreoPersonal">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label for="ccTelOficina">Teléfono oficina</label>
+          <input type="text" id="ccTelOficina">
+        </div>
+        <div class="form-field">
+          <label for="ccCelular">Celular</label>
+          <input type="text" id="ccCelular">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;font-size:13px;margin:-2px 0 14px;">
+        <label style="display:flex;gap:8px;align-items:center;cursor:pointer;"><input type="checkbox" id="ccFactura"> Recibe Facturas y Cotizaciones</label>
+        <label style="display:flex;gap:8px;align-items:center;cursor:pointer;"><input type="checkbox" id="ccActivo" checked> Activo</label>
+      </div>
+      <div class="modal-actions">
+        <a class="btn-ghost" id="ccFichaCompleta" href="#" style="margin-right:auto;">Ficha completa</a>
+        <button class="btn-ghost" data-close-modal>Cancelar</button>
+        <button class="btn-confirm" id="btnGuardarContactoEmpresa">Guardar contacto</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="modalContrato">
     <div class="modal-box" style="max-width:560px;">
       <h4 id="modalContratoTitulo">Agregar servicio</h4>
@@ -811,6 +928,23 @@ try{
     toast._t = setTimeout(function(){ toast.classList.remove('show'); }, 2600);
   }
 
+  // Botones de copiar (RFC del listado; correo y celular en Contactos de la ficha).
+  document.querySelectorAll('.copy-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var valor = btn.getAttribute('data-copy');
+      var hacerFeedback = function(){
+        btn.classList.add('copied');
+        mostrarToastEmpresas((btn.getAttribute('data-copy-tipo') || 'RFC') + ' "' + valor + '" copiado al portapapeles');
+        setTimeout(function(){ btn.classList.remove('copied'); }, 1500);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(valor).then(hacerFeedback).catch(hacerFeedback);
+      } else {
+        hacerFeedback();
+      }
+    });
+  });
+
   <?php if ( $talos_ficha_id ) : ?>
   // ===== Ficha: alternar vista/edición + guardar =====
   <?php if ( $talos_ficha_editando && current_user_can( 'manage_options' ) ) : ?>document.body.classList.add('editando');<?php endif; ?>
@@ -892,6 +1026,74 @@ try{
       if (!res.success){ mostrarToastEmpresas(res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo guardar el servicio.'); return; }
       window.location.reload();
     }).catch(function(){ btn.disabled = false; mostrarToastEmpresas('No se pudo guardar el servicio.'); });
+  });
+
+  // ===== Contactos de la Empresa: agregar / editar (includes/ajax-contactos.php) =====
+  var talosNonceCon = '<?php echo esc_js( wp_create_nonce( 'talos_contactos' ) ); ?>';
+  var modalContactoEmpresa = document.getElementById('modalContactoEmpresa');
+  var contactoEditando = 0;
+  function abrirModalContactoEmpresa(d){
+    contactoEditando = d ? d.id : 0;
+    document.getElementById('modalContactoTitulo').textContent = d ? 'Editar contacto' : 'Agregar contacto';
+    document.getElementById('ccNombre').value = d ? d.nombre : '';
+    document.getElementById('ccCargo').value = d ? d.cargo : '';
+    document.getElementById('ccCorreo').value = d ? d.correo : '';
+    document.getElementById('ccCorreoPersonal').value = d ? d.correo_personal : '';
+    document.getElementById('ccTelOficina').value = d ? d.tel_oficina : '';
+    document.getElementById('ccCelular').value = d ? d.celular : '';
+    document.getElementById('ccFactura').checked = d ? d.factura : false;
+    document.getElementById('ccActivo').checked = d ? d.estatus !== 'inactive' : true;
+    var liga = document.getElementById('ccFichaCompleta');
+    liga.hidden = !d;
+    if (d) liga.href = '<?php echo esc_js( home_url( '/contactos/' ) ); ?>?ficha=' + d.id + '&editar';
+    modalContactoEmpresa.classList.add('show');
+    document.getElementById('ccNombre').focus();
+  }
+  document.getElementById('btnAgregarContacto').addEventListener('click', function(){ abrirModalContactoEmpresa(null); });
+  document.querySelectorAll('[data-role="editar-contacto"]').forEach(function(btn){
+    btn.addEventListener('click', function(){ abrirModalContactoEmpresa(JSON.parse(btn.getAttribute('data-contacto'))); });
+  });
+  modalContactoEmpresa.querySelectorAll('[data-close-modal]').forEach(function(b){ b.addEventListener('click', function(){ modalContactoEmpresa.classList.remove('show'); }); });
+  function postContactos(campos){
+    var form = new FormData();
+    form.append('nonce', talosNonceCon);
+    Object.keys(campos).forEach(function(k){ form.append(k, campos[k]); });
+    return fetch(talosAjaxUrlEmp, { method: 'POST', body: form, credentials: 'same-origin' }).then(function(r){ return r.json(); });
+  }
+  document.getElementById('btnGuardarContactoEmpresa').addEventListener('click', function(){
+    var btn = this;
+    var nombre = document.getElementById('ccNombre').value.trim();
+    if (!nombre){ mostrarToastEmpresas('Escribe el nombre del contacto.'); return; }
+    var estatus = document.getElementById('ccActivo').checked ? 'active' : 'inactive';
+    var datos = {
+      action: 'talos_guardar_contacto',
+      nombre: nombre,
+      contact_role: document.getElementById('ccCargo').value,
+      contact_company_email: document.getElementById('ccCorreo').value.trim(),
+      contact_personal_email: document.getElementById('ccCorreoPersonal').value.trim(),
+      contact_phone_office: document.getElementById('ccTelOficina').value.trim(),
+      contact_phone_mobile: document.getElementById('ccCelular').value.trim(),
+      contact_status: estatus
+    };
+    if (document.getElementById('ccFactura').checked) datos.contact_billing_recipient = '1';
+    // Alta: hereda la Clase de la Empresa (talos-core solo la sincroniza al guardar la Empresa en wp-admin).
+    if (!contactoEditando) datos.contact_class = <?php echo wp_json_encode( (string) ( $f['company_class'] ?? '' ) ); ?>;
+    btn.disabled = true;
+    // Alta: primero se crea (nombre + empresa + estatus) y luego se guarda el resto.
+    var paso = contactoEditando
+      ? Promise.resolve({ success: true, data: { id: contactoEditando } })
+      : postContactos({ action: 'talos_crear_contacto', nombre: nombre, empresa_id: <?php echo (int) $talos_ficha_id; ?>, estatus: estatus });
+    paso.then(function(res){
+      if (!res.success) throw new Error(res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo crear el contacto.');
+      datos.contacto_id = res.data.id;
+      return postContactos(datos);
+    }).then(function(res){
+      if (!res.success) throw new Error(res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo guardar el contacto.');
+      window.location.reload();
+    }).catch(function(err){
+      btn.disabled = false;
+      mostrarToastEmpresas(err && err.message ? err.message : 'No se pudo guardar el contacto.');
+    });
   });
 
   // ===== Facturas (modal compartido, includes/ajax-facturas.php) =====
@@ -981,22 +1183,6 @@ try{
     });
   });
   document.getElementById('buscarEmpresa').addEventListener('input', aplicarFiltrosEmpresas);
-
-  document.querySelectorAll('.copy-btn').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      var valor = btn.getAttribute('data-copy');
-      var hacerFeedback = function(){
-        btn.classList.add('copied');
-        mostrarToastEmpresas('RFC "' + valor + '" copiado al portapapeles');
-        setTimeout(function(){ btn.classList.remove('copied'); }, 1500);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText){
-        navigator.clipboard.writeText(valor).then(hacerFeedback).catch(hacerFeedback);
-      } else {
-        hacerFeedback();
-      }
-    });
-  });
 
   <?php if ( current_user_can( 'manage_options' ) ) : ?>
   var modalNuevaEmpresa = document.getElementById('modalNuevaEmpresa');

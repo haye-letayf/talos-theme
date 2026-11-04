@@ -12,14 +12,7 @@
 
 $talos_contacto_clase_labels = array( 'client'=>'Client', 'opportunity'=>'Open Opportunity', 'lead'=>'Lead', 'partner'=>'Partner', 'nfs'=>'NFS' );
 $talos_contacto_estatus_labels = array( 'active'=>'Active', 'inactive'=>'Inactive' );
-$talos_contacto_cargo_labels = array(
-    'ceo_fundador'=>'CEO / Fundador','director_general'=>'Director General','director_marketing'=>'Director de Marketing (CMO)',
-    'director_ventas'=>'Director de Ventas (CSO)','gerente_marketing'=>'Gerente de Marketing','gerente_ventas'=>'Gerente de Ventas',
-    'gerente_sistemas'=>'Gerente de TI / Sistemas','ejecutivo_cuenta'=>'Ejecutivo de Cuenta','asistente_direccion'=>'Asistente de Dirección',
-    'recursos_humanos'=>'Recursos Humanos','compras_facturacion'=>'Compras / Facturación','broker_owner'=>'Broker Owner',
-    'realtor'=>'Realtor','owners_assistant'=>"Owner's Assistant",'manager'=>'Manager','marketing'=>'Marketing','it'=>'IT / Sistemas',
-    'accounting'=>'Contabilidad','sales'=>'Ventas','admin'=>'Administración','otro'=>'Otro',
-);
+$talos_contacto_cargo_labels = talos_contacto_cargo_labels();
 
 $talos_ficha_id = isset( $_GET['ficha'] ) ? (int) $_GET['ficha'] : 0;
 if ( $talos_ficha_id && 'talos_contact' !== get_post_type( $talos_ficha_id ) ) {
@@ -164,6 +157,27 @@ get_header();
       </div>
     </div>
   </div>
+
+  <?php if ( $f['empresa_id'] ) :
+      $c_emp_id      = (int) $f['empresa_id'];
+      $c_emp_razon   = (string) get_field( 'company_legal_name', $c_emp_id );
+      $c_emp_rfc     = (string) get_field( 'company_rfc', $c_emp_id );
+      $c_emp_activa  = 'inactive' !== get_field( 'company_status', $c_emp_id ); ?>
+  <div class="ficha-card">
+    <div class="ficha-section-label">Empresa</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div>
+        <a class="link-ficha" style="font-size:15px;" href="<?php echo esc_url( add_query_arg( 'ficha', $c_emp_id, home_url( '/empresas/' ) ) ); ?>"><?php echo esc_html( get_the_title( $c_emp_id ) ); ?></a>
+        <span class="pill status-<?php echo $c_emp_activa ? 'active' : 'inactive'; ?>" style="margin-left:8px;"><span class="pill-dot"></span><?php echo $c_emp_activa ? 'Activa' : 'Inactiva'; ?></span>
+        <?php if ( $c_emp_razon || $c_emp_rfc ) : ?>
+          <div class="field-hint" style="margin-top:4px;"><?php echo esc_html( implode( ' · ', array_filter( array( $c_emp_razon, $c_emp_rfc ) ) ) ); ?></div>
+        <?php endif; ?>
+      </div>
+      <a class="btn-secondary" href="<?php echo esc_url( add_query_arg( 'ficha', $c_emp_id, home_url( '/empresas/' ) ) ); ?>"><svg viewBox="0 0 24 24"><use href="#i-arrow-right"/></svg>Ver ficha de la empresa</a>
+    </div>
+    <p class="field-hint" style="margin:12px 0 0;">Para cambiarlo de empresa, dale Editar y elige otra en "Empresa".</p>
+  </div>
+  <?php endif; ?>
 
   <div class="ficha-card">
     <div class="ficha-section-label">Contacto</div>

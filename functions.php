@@ -107,6 +107,18 @@ function talos_meses_es() {
     return array( 1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre' );
 }
 
+/** Cargos de Contacto (contact_role): ficha de Contacto y sección Contactos de Empresa. */
+function talos_contacto_cargo_labels() {
+    return array(
+    'ceo_fundador'=>'CEO / Fundador','director_general'=>'Director General','director_marketing'=>'Director de Marketing (CMO)',
+    'director_ventas'=>'Director de Ventas (CSO)','gerente_marketing'=>'Gerente de Marketing','gerente_ventas'=>'Gerente de Ventas',
+    'gerente_sistemas'=>'Gerente de TI / Sistemas','ejecutivo_cuenta'=>'Ejecutivo de Cuenta','asistente_direccion'=>'Asistente de Dirección',
+    'recursos_humanos'=>'Recursos Humanos','compras_facturacion'=>'Compras / Facturación','broker_owner'=>'Broker Owner',
+    'realtor'=>'Realtor','owners_assistant'=>"Owner's Assistant",'manager'=>'Manager','marketing'=>'Marketing','it'=>'IT / Sistemas',
+    'accounting'=>'Contabilidad','sales'=>'Ventas','admin'=>'Administración','otro'=>'Otro',
+    );
+}
+
 function talos_meses_cortos() {
     return array( 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic' );
 }
