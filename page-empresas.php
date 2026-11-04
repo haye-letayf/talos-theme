@@ -72,6 +72,12 @@ function talos_emp_fecha_input( $ymd ) {
     $d = preg_replace( '/\D/', '', (string) $ymd );
     return 8 === strlen( $d ) ? substr( $d, 0, 4 ) . '-' . substr( $d, 4, 2 ) . '-' . substr( $d, 6, 2 ) : '';
 }
+/** Fecha ACF cruda (Ymd) -> "1 feb 2027" para la tabla de servicios. */
+function talos_emp_fecha_texto( $ymd ) {
+    $d = preg_replace( '/\D/', '', (string) $ymd );
+    if ( 8 !== strlen( $d ) ) return '';
+    return (int) substr( $d, 6, 2 ) . ' ' . talos_meses_cortos()[ (int) substr( $d, 4, 2 ) - 1 ] . ' ' . substr( $d, 0, 4 );
+}
 
 $talos_frecuencia_labels_empresa = array(
     'pago_unico'=>'Pago Único','por_hora'=>'Por Hora','semanal'=>'Semanal','quincenal'=>'Quincenal',
@@ -212,8 +218,8 @@ if ( $talos_ficha_id ) {
             'frecuencia'  => get_field( 'service_frequency', $talos_servicio_post->ID ) ?: '',
             'precio'      => (float) get_field( 'service_price', $talos_servicio_post->ID ),
             'estatus'     => ! empty( get_field( 'service_status', $talos_servicio_post->ID ) ),
-            'inicio'      => get_field( 'service_start_date', $talos_servicio_post->ID ) ?: '',
-            'fin'         => get_field( 'service_end_date', $talos_servicio_post->ID ) ?: '',
+            'inicio'      => talos_emp_fecha_texto( get_field( 'service_start_date', $talos_servicio_post->ID, false ) ),
+            'fin'         => talos_emp_fecha_texto( get_field( 'service_end_date', $talos_servicio_post->ID, false ) ),
             'motivo'      => (string) get_field( 'service_suspension_reason', $talos_servicio_post->ID ),
             'datos'       => array(
                 'id'           => $talos_servicio_post->ID,
