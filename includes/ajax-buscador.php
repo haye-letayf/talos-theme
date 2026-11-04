@@ -122,11 +122,8 @@ function talos_buscador_detalle( $post_type, $id ) {
     return implode( ' · ', array_filter( array_map( 'trim', $partes ) ) );
 }
 
-/** A dónde lleva cada resultado. Oportunidad no tiene ficha: va al Kanban. */
+/** A dónde lleva cada resultado: la ficha de su sección. */
 function talos_buscador_url( $post_type, $seccion, $id ) {
-    if ( 'talos_opportunity' === $post_type ) {
-        return add_query_arg( 'op', $id, home_url( '/oportunidades/' ) );
-    }
     return add_query_arg( 'ficha', $id, home_url( '/' . $seccion . '/' ) );
 }
 

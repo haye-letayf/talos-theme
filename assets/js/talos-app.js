@@ -204,8 +204,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   } catch (e) {}
 
-  // Oportunidad abierta desde el buscador: el Kanban llega con ?op=ID y se
-  // resalta su tarjeta (mientras no exista la ficha de Oportunidad).
+  // Kanban con ?op=ID (p. ej. "Volver" desde la ficha de una Oportunidad):
+  // resalta su tarjeta y la trae a la vista.
   try {
     var opId = new URLSearchParams(window.location.search).get('op');
     if (opId && /^\d+$/.test(opId)) {

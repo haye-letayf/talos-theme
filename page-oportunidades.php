@@ -9,8 +9,8 @@
  *
  * Mover de etapa y crear oportunidad SÍ quedan wireados a AJAX real (a
  * diferencia del resto de "Nuevo X" de otros módulos, que quedan en toast) —
- * es la interacción diaria de un Kanban y el alcance es acotado. "Ver/Editar"
- * siguen en toast, sin ficha de detalle diseñada todavía.
+ * es la interacción diaria de un Kanban y el alcance es acotado. Ver/Editar
+ * y el clic en la tarjeta abren la ficha (?ficha=ID, fichas/ficha-oportunidad.php).
  */
 
 function talos_oportunidad_valor_total( $id ) {
@@ -47,6 +47,13 @@ $talos_opp_etapas = array(
     'ganada'            => array( 'label' => 'Ganada',            'color' => 'var(--success)', 'permite_crear' => false, 'siguiente' => null ),
     'perdida'           => array( 'label' => 'Perdida',           'color' => 'var(--danger)', 'permite_crear' => false, 'siguiente' => null ),
 );
+
+// ===== ?ficha=ID: ficha completa de la Oportunidad (fichas/ficha-oportunidad.php) =====
+$talos_ficha_id = isset( $_GET['ficha'] ) ? (int) $_GET['ficha'] : 0;
+if ( $talos_ficha_id && 'talos_opportunity' === get_post_type( $talos_ficha_id ) && current_user_can( 'manage_options' ) ) {
+    require get_template_directory() . '/fichas/ficha-oportunidad.php';
+    return;
+}
 
 $talos_opp_ids = get_posts( array(
     'post_type'      => 'talos_opportunity',
@@ -214,8 +221,8 @@ get_header();
                 <div class="deal-ava"><?php echo esc_html( talos_iniciales( $d['empresa'] ) ); ?></div>
               </div>
               <div class="deal-actions">
-                <button class="action-btn view" data-action="ver" data-oportunidad="<?php echo esc_attr( $d['nombre'] ); ?>" title="Ver datos"><svg viewBox="0 0 24 24"><use href="#i-eye"/></svg></button>
-                <button class="action-btn edit" data-action="editar" data-oportunidad="<?php echo esc_attr( $d['nombre'] ); ?>" title="Editar"><svg viewBox="0 0 24 24"><use href="#i-edit"/></svg></button>
+                <a class="action-btn view" href="<?php echo esc_url( add_query_arg( 'ficha', $id ) ); ?>" title="Ver ficha"><svg viewBox="0 0 24 24"><use href="#i-eye"/></svg></a>
+                <a class="action-btn edit" href="<?php echo esc_url( add_query_arg( array( 'ficha' => $id, 'editar' => 1 ) ) ); ?>" title="Editar"><svg viewBox="0 0 24 24"><use href="#i-edit"/></svg></a>
                 <?php if ( 'prospeccion' === $etapa_key || 'propuesta_enviada' === $etapa_key ) : ?>
                   <button class="btn-move" data-move="<?php echo esc_attr( $etapa['siguiente'] ); ?>">Siguiente etapa<svg viewBox="0 0 24 24"><use href="#i-arrow-right"/></svg></button>
                 <?php endif; ?>
@@ -240,7 +247,7 @@ get_header();
 <div class="modal-overlay" id="modalNuevaOportunidad">
   <div class="modal-box">
     <h4>Nueva Oportunidad</h4>
-    <p class="modal-sub">Captura los datos iniciales. Podrás agregar los conceptos de la cotización después, desde wp-admin.</p>
+    <p class="modal-sub">Captura los datos iniciales. Al crearla se abre su ficha para detallar los conceptos.</p>
     <div class="form-field">
       <label for="campoEmpresa">Empresa</label>
       <select id="campoEmpresa">
@@ -269,7 +276,7 @@ get_header();
         </select>
       </div>
     </div>
-    <span class="field-hint" style="display:block;margin:-8px 0 14px;">El valor captura un concepto genérico en la cotización — ábrela después en wp-admin para detallar los conceptos reales.</span>
+    <span class="field-hint" style="display:block;margin:-8px 0 14px;">El valor crea un concepto genérico en la cotización; detállalo en la ficha.</span>
     <div class="modal-actions">
       <button class="btn-ghost" data-close-modal>Cancelar</button>
       <button class="btn-confirm" id="btnConfirmarNuevaOportunidad">Crear Oportunidad</button>
@@ -292,14 +299,12 @@ try{
     toast._t = setTimeout(function(){ toast.classList.remove('show'); }, 2600);
   }
 
-  document.querySelectorAll('[data-action="ver"]').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      mostrarToastOpp('Ver datos de "' + btn.getAttribute('data-oportunidad') + '" — pantalla por diseñar en la siguiente fase');
-    });
-  });
-  document.querySelectorAll('[data-action="editar"]').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      mostrarToastOpp('Editar "' + btn.getAttribute('data-oportunidad') + '" — pantalla por diseñar en la siguiente fase');
+  // Clic en la tarjeta (fuera de sus botones) abre su ficha.
+  document.querySelectorAll('.deal-card').forEach(function(card){
+    card.style.cursor = 'pointer';
+    card.addEventListener('click', function(e){
+      if (e.target.closest('a, button')) return;
+      window.location.href = '?ficha=' + card.getAttribute('data-id');
     });
   });
 
@@ -369,7 +374,7 @@ try{
         btn.disabled = false;
         return;
       }
-      window.location.reload();
+      window.location.href = '?ficha=' + res.data.id + '&editar=1';
     });
   });
 }catch(e){ console.error(e); }
