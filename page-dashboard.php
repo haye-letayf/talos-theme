@@ -73,23 +73,27 @@ function talos_dashboard_totales_expense( DateTime $mes ) {
     return array( 'pagado' => $pagado, 'pendiente' => $pendiente, 'total' => $pagado + $pendiente );
 }
 
-function talos_dashboard_totales_empresas() {
+/**
+ * Oportunidades por etapa, sin periodo: todo lo que hay hoy en el Kanban.
+ * Solo para la vista de Director (2026-11-05, Jorge: nadie más las ve).
+ */
+function talos_dashboard_totales_oportunidades() {
+    $etapas = array( 'propuesta_enviada', 'en_negociacion', 'ganada' );
+    $tot = array_fill_keys( $etapas, array( 'n' => 0, 'valor' => 0.0 ) );
     $ids = get_posts( array(
-        'post_type'      => 'talos_company',
+        'post_type'      => 'talos_opportunity',
         'post_status'    => 'publish',
         'posts_per_page' => -1,
         'fields'         => 'ids',
+        'meta_query'     => array( array( 'key' => 'opportunity_stage', 'value' => $etapas, 'compare' => 'IN' ) ),
     ) );
-
-    $clientes_activos  = 0;
-    $leads_oportunidad = 0;
     foreach ( $ids as $id ) {
-        $clase   = get_field( 'company_class', $id );
-        $estatus = get_field( 'company_status', $id );
-        if ( 'client' === $clase && 'active' === $estatus ) $clientes_activos++;
-        if ( in_array( $clase, array( 'lead', 'opportunity' ), true ) ) $leads_oportunidad++;
+        $etapa = get_post_meta( $id, 'opportunity_stage', true );
+        if ( ! isset( $tot[ $etapa ] ) ) continue;
+        $tot[ $etapa ]['n']++;
+        $tot[ $etapa ]['valor'] += talos_oportunidad_valor_total( $id );
     }
-    return array( 'clientes_activos' => $clientes_activos, 'leads_oportunidad' => $leads_oportunidad );
+    return $tot;
 }
 
 /**
@@ -156,7 +160,7 @@ if ( $talos_es_director ) {
     $talos_mes_actual   = talos_mes_activo();
     $talos_mes_anterior = ( clone $talos_mes_actual )->modify( '-1 month' );
 
-    $talos_empresas_totales = talos_dashboard_totales_empresas();
+    $talos_opp_totales      = talos_dashboard_totales_oportunidades();
     $talos_cartera_asesores = talos_dashboard_cartera_por_asesor();
     $talos_income_actual   = talos_dashboard_totales_income( $talos_mes_actual );
     $talos_income_anterior = talos_dashboard_totales_income( $talos_mes_anterior );
@@ -249,10 +253,11 @@ get_header();
   .kpi-trend.down{color:var(--danger);}
   .kpi-label{font-size:12.5px;color:var(--text-muted);font-weight:600;margin:0;}
   .kpi-value{font-size:24px;font-weight:800;margin:0;letter-spacing:-.01em;}
+  .kpi-sub{font-size:12px;color:var(--text-muted);margin:-6px 0 0;}
+  a.kpi-link{color:inherit;text-decoration:none;transition:border-color .15s;}
+  a.kpi-link:hover{border-color:var(--accent);}
   @media (max-width:1024px){.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
   @media (max-width:560px){.kpi-grid{grid-template-columns:1fr;}.page-head{align-items:flex-start;}}
-  .kpi-grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr));}
-  @media (max-width:560px){.kpi-grid.cols-2{grid-template-columns:1fr;}}
 
   .asesor-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;}
   @media (max-width:1024px){.asesor-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
@@ -337,18 +342,26 @@ get_header();
   </div>
 </div>
 
-<div class="kpi-section-label">Empresas</div>
-<div class="kpi-grid cols-2">
-  <div class="kpi-card">
-    <div class="kpi-top"><div class="kpi-icon success"><svg viewBox="0 0 24 24"><use href="#i-building"/></svg></div></div>
-    <p class="kpi-label">Clientes Activos</p>
-    <p class="kpi-value tabular"><?php echo esc_html( $talos_empresas_totales['clientes_activos'] ); ?></p>
-  </div>
-  <div class="kpi-card">
-    <div class="kpi-top"><div class="kpi-icon accent"><svg viewBox="0 0 24 24"><use href="#i-funnel"/></svg></div></div>
-    <p class="kpi-label">Leads / Oportunidad</p>
-    <p class="kpi-value tabular"><?php echo esc_html( $talos_empresas_totales['leads_oportunidad'] ); ?></p>
-  </div>
+<div class="kpi-section-label">Oportunidades</div>
+<div class="kpi-grid">
+  <a class="kpi-card kpi-link" href="<?php echo esc_url( home_url( '/oportunidades/' ) ); ?>">
+    <div class="kpi-top"><div class="kpi-icon accent"><svg viewBox="0 0 24 24"><use href="#i-send"/></svg></div></div>
+    <p class="kpi-label">Propuestas Enviadas</p>
+    <p class="kpi-value tabular"><?php echo esc_html( talos_fmt_mxn( $talos_opp_totales['propuesta_enviada']['valor'] ) ); ?></p>
+    <p class="kpi-sub tabular"><?php $n = $talos_opp_totales['propuesta_enviada']['n']; echo esc_html( $n . ' oportunidad' . ( 1 === $n ? '' : 'es' ) . ' · en pipeline' ); ?></p>
+  </a>
+  <a class="kpi-card kpi-link" href="<?php echo esc_url( home_url( '/oportunidades/' ) ); ?>">
+    <div class="kpi-top"><div class="kpi-icon accent"><svg viewBox="0 0 24 24"><use href="#i-users"/></svg></div></div>
+    <p class="kpi-label">En Negociación</p>
+    <p class="kpi-value tabular"><?php echo esc_html( talos_fmt_mxn( $talos_opp_totales['en_negociacion']['valor'] ) ); ?></p>
+    <p class="kpi-sub tabular"><?php $n = $talos_opp_totales['en_negociacion']['n']; echo esc_html( $n . ' oportunidad' . ( 1 === $n ? '' : 'es' ) . ' · en pipeline' ); ?></p>
+  </a>
+  <a class="kpi-card kpi-link" href="<?php echo esc_url( home_url( '/oportunidades/' ) ); ?>">
+    <div class="kpi-top"><div class="kpi-icon success"><svg viewBox="0 0 24 24"><use href="#i-trophy"/></svg></div></div>
+    <p class="kpi-label">Ganadas</p>
+    <p class="kpi-value tabular"><?php echo esc_html( talos_fmt_mxn( $talos_opp_totales['ganada']['valor'] ) ); ?></p>
+    <p class="kpi-sub tabular"><?php $n = $talos_opp_totales['ganada']['n']; echo esc_html( $n . ' oportunidad' . ( 1 === $n ? '' : 'es' ) . ' · cerrado' ); ?></p>
+  </a>
 </div>
 
 <div class="kpi-section-label">Cartera por Asesor</div>

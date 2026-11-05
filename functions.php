@@ -238,3 +238,27 @@ function talos_login_personalizado() {
 add_action( 'login_enqueue_scripts', 'talos_login_personalizado' );
 add_filter( 'login_headerurl', function () { return home_url( '/' ); } );
 add_filter( 'login_headertext', function () { return 'Talos — Once24'; } );
+
+/**
+ * Valor de una Oportunidad: suma de quote_items (cantidad × precio final con
+ * descuento del concepto) menos el descuento general. Kanban y Dashboard.
+ */
+function talos_oportunidad_valor_total( $id ) {
+    $items = get_field( 'quote_items', $id );
+    $subtotal = 0.0;
+    if ( is_array( $items ) && function_exists( 'talos_precio_final_concepto' ) ) {
+        foreach ( $items as $item ) {
+            $cantidad = (float) ( $item['service_quantity'] ?? 1 );
+            $subtotal += $cantidad * talos_precio_final_concepto( $item );
+        }
+    }
+    if ( get_field( 'quote_has_general_discount', $id ) ) {
+        $valor_desc = (float) get_field( 'quote_general_discount_value', $id );
+        if ( 'porcentaje' === get_field( 'quote_general_discount_type', $id ) ) {
+            $subtotal -= $subtotal * ( $valor_desc / 100 );
+        } else {
+            $subtotal -= $valor_desc;
+        }
+    }
+    return max( 0, round( $subtotal, 2 ) );
+}
