@@ -121,10 +121,12 @@ talos_ficha_estilos();
   .pill.etapa{background:var(--surface-2);color:var(--text);}
   .conceptos-tabla{width:100%;border-collapse:collapse;font-size:13px;}
   .conceptos-tabla th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:700;padding:0 8px 8px 0;border-bottom:1px solid var(--border);white-space:nowrap;}
-  .conceptos-tabla td{padding:9px 8px 9px 0;border-bottom:1px solid var(--border);vertical-align:top;}
+  .conceptos-tabla td{padding:9px 8px 9px 0;border-bottom:1px solid var(--border);vertical-align:top;white-space:normal;}
   .conceptos-tabla .num{text-align:right;white-space:nowrap;}
   .conceptos-tabla .sub{display:block;font-size:11.5px;color:var(--text-muted);margin-top:2px;}
   .conceptos-tabla input,.conceptos-tabla select,.conceptos-tabla textarea{width:100%;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:7px;padding:6px 8px;font:inherit;font-size:12.5px;}
+  /* El shell pone nowrap a todo td: el servicio y su descripción van apilados. */
+  .conceptos-tabla td > select,.conceptos-tabla td > textarea{display:block;}
   .conceptos-tabla textarea{resize:vertical;min-height:34px;}
   .conceptos-tabla .w-num{width:84px;}
   .conceptos-tabla .w-cant{width:62px;}
