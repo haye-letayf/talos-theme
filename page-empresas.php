@@ -163,10 +163,15 @@ foreach ( $talos_empresas_ids as $id ) {
 }
 
 if ( $talos_ficha_id ) {
-    $talos_equipo_para_am = get_posts( array(
-        'post_type' => 'talos_team', 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC',
-    ) );
     $f_am = get_field( 'company_account_manager', $talos_ficha_id );
+    // Solo miembros activos; el AM actual se queda en la lista aunque esté
+    // inactivo, para que guardar la ficha no lo borre sin querer.
+    $talos_equipo_para_am = array_values( array_filter( get_posts( array(
+        'post_type' => 'talos_team', 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC',
+    ) ), function ( $miembro ) use ( $f_am ) {
+        return 'activo' === get_field( 'team_status', $miembro->ID )
+            || ( $f_am instanceof WP_Post && $f_am->ID === $miembro->ID );
+    } ) );
     $f = array(
         'nombre'          => get_the_title( $talos_ficha_id ),
         'company_status'  => get_field( 'company_status', $talos_ficha_id ),

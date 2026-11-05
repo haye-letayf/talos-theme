@@ -58,6 +58,30 @@ function talos_ajax_guardar_miembro() {
         wp_send_json_error( array( 'mensaje' => 'Miembro de equipo no válido.' ) );
     }
 
+    // Baja de Account Manager: si pasa de activo a inactivo y tiene empresas
+    // asignadas, el front debe mandar qué hacer con ellas (am_destino = ID de
+    // un miembro activo, o "ninguno"). Se valida ANTES de guardar nada.
+    $estatus_antes = get_field( 'team_status', $id );
+    $estatus_nuevo = isset( $_POST['team_status'] ) ? sanitize_text_field( wp_unslash( $_POST['team_status'] ) ) : $estatus_antes;
+    $empresas_a_reasignar = array();
+    $am_destino = 0;
+    if ( 'inactivo' === $estatus_nuevo && 'inactivo' !== $estatus_antes ) {
+        $empresas_a_reasignar = talos_equipo_empresas_de_am( $id );
+        if ( $empresas_a_reasignar ) {
+            $destino = isset( $_POST['am_destino'] ) ? sanitize_text_field( wp_unslash( $_POST['am_destino'] ) ) : '';
+            if ( '' === $destino ) {
+                wp_send_json_error( array( 'mensaje' => 'Tiene empresas asignadas: elige a quién pasarlas o déjalas sin asignar.' ) );
+            }
+            if ( 'ninguno' !== $destino ) {
+                $am_destino = (int) $destino;
+                if ( ! $am_destino || $am_destino === $id || 'talos_team' !== get_post_type( $am_destino )
+                    || 'publish' !== get_post_status( $am_destino ) || 'activo' !== get_field( 'team_status', $am_destino ) ) {
+                    wp_send_json_error( array( 'mensaje' => 'El nuevo Account Manager debe ser un miembro activo del equipo.' ) );
+                }
+            }
+        }
+    }
+
     $nombre = isset( $_POST['nombre'] ) ? sanitize_text_field( wp_unslash( $_POST['nombre'] ) ) : '';
     if ( '' !== $nombre ) {
         wp_update_post( array( 'ID' => $id, 'post_title' => $nombre ) );
@@ -101,9 +125,29 @@ function talos_ajax_guardar_miembro() {
         }
     }
 
-    wp_send_json_success();
+    foreach ( $empresas_a_reasignar as $empresa_id ) {
+        update_field( 'company_account_manager', $am_destino ?: null, $empresa_id );
+    }
+
+    wp_send_json_success( array( 'empresas_reasignadas' => count( $empresas_a_reasignar ) ) );
 }
 add_action( 'wp_ajax_talos_guardar_miembro', 'talos_ajax_guardar_miembro' );
+
+/**
+ * IDs de las Empresas (publicadas, de cualquier estatus) donde el miembro es
+ * el Account Manager. La usan la ficha de Equipo y la baja de AM.
+ */
+function talos_equipo_empresas_de_am( $team_id ) {
+    return get_posts( array(
+        'post_type'      => 'talos_company',
+        'post_status'    => 'publish',
+        'posts_per_page' => -1,
+        'fields'         => 'ids',
+        'orderby'        => 'title',
+        'order'          => 'ASC',
+        'meta_query'     => array( array( 'key' => 'company_account_manager', 'value' => (int) $team_id ) ),
+    ) );
+}
 
 /**
  * Elimina (papelera, recuperable desde wp-admin) un miembro de Equipo.

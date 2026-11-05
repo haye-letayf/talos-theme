@@ -104,10 +104,18 @@ if ( $talos_ficha_id ) {
 
     // Dependientes para el aviso de Eliminar: Empresas donde es el Account
     // Manager + Gastos de nómina donde es el beneficiario.
-    $talos_ficha_empresas_n = count( get_posts( array(
-        'post_type' => 'talos_company', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids',
-        'meta_query' => array( array( 'key' => 'company_account_manager', 'value' => $talos_ficha_id ) ),
-    ) ) );
+    $talos_ficha_empresas   = talos_equipo_empresas_de_am( $talos_ficha_id );
+    $talos_ficha_empresas_n = count( $talos_ficha_empresas );
+
+    // Baja de AM: a quién se pueden pasar sus empresas (miembros activos).
+    $talos_am_destinos = array();
+    if ( $talos_ficha_empresas_n ) {
+        foreach ( $talos_equipo_ids as $otro_id ) {
+            if ( $otro_id !== $talos_ficha_id && 'activo' === get_field( 'team_status', $otro_id ) ) {
+                $talos_am_destinos[ $otro_id ] = get_the_title( $otro_id );
+            }
+        }
+    }
     $talos_ficha_gastos_n = count( get_posts( array(
         'post_type' => 'talos_expense', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids',
         'meta_query' => array( array( 'key' => 'expense_team_member', 'value' => $talos_ficha_id ) ),
@@ -124,6 +132,8 @@ get_header();
   .ficha-modo-vista .solo-editando{display:none;}
   body.editando .ficha-modo-vista .solo-vista{display:none;}
   body.editando .ficha-modo-vista .solo-editando{display:inline-flex;}
+  .baja-am-lista{margin:0 0 16px;padding:10px 14px 10px 30px;max-height:180px;overflow:auto;background:var(--surface-2, rgba(0,0,0,.03));border-radius:10px;font-size:13px;line-height:1.6;}
+  .baja-am-inactiva{color:var(--text-muted);font-size:12px;}
 </style>
 
 <?php if ( $talos_ficha_id ) : ?>
@@ -305,6 +315,35 @@ get_header();
     </div>
   </div>
 
+  <?php if ( $talos_ficha_empresas_n ) : ?>
+  <div class="modal-overlay" id="modalBajaAm">
+    <div class="modal-box">
+      <h4>"<?php echo esc_html( $f['nombre'] ); ?>" es Account Manager de <?php echo esc_html( $talos_ficha_empresas_n ); ?> empresa(s)</h4>
+      <p class="modal-sub">Al pasarlo a Inactivo, ¿qué hacemos con ellas?</p>
+      <ul class="baja-am-lista">
+        <?php foreach ( $talos_ficha_empresas as $empresa_id ) :
+          $empresa_estatus = get_field( 'company_status', $empresa_id ); ?>
+          <li><?php echo esc_html( get_the_title( $empresa_id ) ); ?><?php if ( 'inactive' === $empresa_estatus ) : ?> <span class="baja-am-inactiva">(inactiva)</span><?php endif; ?></li>
+        <?php endforeach; ?>
+      </ul>
+      <div class="form-field">
+        <label for="bajaAmDestino">Account Manager nuevo</label>
+        <select id="bajaAmDestino">
+          <option value="">— Elige —</option>
+          <?php foreach ( $talos_am_destinos as $destino_id => $destino_nombre ) : ?>
+            <option value="<?php echo esc_attr( $destino_id ); ?>">Reasignar todas a <?php echo esc_html( $destino_nombre ); ?></option>
+          <?php endforeach; ?>
+          <option value="ninguno">Dejarlas sin asignar</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" data-close-modal>Cancelar</button>
+        <button class="btn-confirm" id="btnConfirmarBajaAm">Guardar</button>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
+
 <?php else : ?>
 
 <div class="page-head">
@@ -454,9 +493,16 @@ try{
   document.getElementById('btnCancelarFicha').addEventListener('click', function(){
     window.location.href = window.location.pathname + '?ficha=<?php echo (int) $talos_ficha_id; ?>';
   });
-  document.getElementById('btnGuardarFicha').addEventListener('click', function(){
-    var btn = this;
-    btn.disabled = true;
+  // Baja de AM: si pasa de activo a inactivo con empresas asignadas, antes de
+  // guardar se pregunta a quién pasarlas (el servidor lo exige igual).
+  var talosEstatusOriginalEq = <?php echo wp_json_encode( (string) $f['team_status'] ); ?>;
+  var talosEmpresasAmEq = <?php echo (int) $talos_ficha_empresas_n; ?>;
+  var modalBajaAm = document.getElementById('modalBajaAm');
+  var btnGuardarFicha = document.getElementById('btnGuardarFicha');
+
+  function guardarFichaEquipo(amDestino, btnExtra){
+    btnGuardarFicha.disabled = true;
+    if (btnExtra) btnExtra.disabled = true;
     var form = new FormData();
     form.append('action', 'talos_guardar_miembro');
     form.append('nonce', talosNonceEq);
@@ -465,15 +511,45 @@ try{
       if (!campo.name) return;
       form.append(campo.name, campo.value);
     });
+    if (amDestino) form.append('am_destino', amDestino);
     fetch(talosAjaxUrlEq, { method: 'POST', body: form, credentials: 'same-origin' }).then(function(r){ return r.json(); }).then(function(res){
       if (!res.success){
         mostrarToastEquipo(res.data && res.data.mensaje ? res.data.mensaje : 'No se pudo guardar.');
-        btn.disabled = false;
+        btnGuardarFicha.disabled = false;
+        if (btnExtra) btnExtra.disabled = false;
         return;
       }
       window.location.href = window.location.pathname + '?ficha=<?php echo (int) $talos_ficha_id; ?>';
+    }).catch(function(){
+      mostrarToastEquipo('No se pudo guardar.');
+      btnGuardarFicha.disabled = false;
+      if (btnExtra) btnExtra.disabled = false;
     });
+  }
+
+  btnGuardarFicha.addEventListener('click', function(){
+    var selEstatus = document.querySelector('.data-field select[name="team_status"]');
+    var pasaAInactivo = selEstatus && selEstatus.value === 'inactivo' && talosEstatusOriginalEq !== 'inactivo';
+    if (pasaAInactivo && talosEmpresasAmEq > 0 && modalBajaAm){
+      document.getElementById('bajaAmDestino').value = '';
+      modalBajaAm.classList.add('show');
+      return;
+    }
+    guardarFichaEquipo('', null);
   });
+
+  if (modalBajaAm){
+    modalBajaAm.querySelectorAll('[data-close-modal]').forEach(function(b){ b.addEventListener('click', function(){ modalBajaAm.classList.remove('show'); }); });
+    modalBajaAm.addEventListener('click', function(e){ if (e.target === modalBajaAm) modalBajaAm.classList.remove('show'); });
+    document.getElementById('btnConfirmarBajaAm').addEventListener('click', function(){
+      var destino = document.getElementById('bajaAmDestino').value;
+      if (!destino){
+        mostrarToastEquipo('Elige a quién pasarlas o "Dejarlas sin asignar".');
+        return;
+      }
+      guardarFichaEquipo(destino, this);
+    });
+  }
 
   var modalEliminarMiembro = document.getElementById('modalEliminarMiembro');
   document.getElementById('btnEliminarMiembro').addEventListener('click', function(){
